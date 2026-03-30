@@ -43,6 +43,7 @@ export interface _SERVICE {
   'getPromptHistory' : ActorMethod<[boolean], Array<PromptHistoryEntry>>,
   'isApiKeyRegistered' : ActorMethod<[], boolean>,
   'isApiKeyRegisteredWithSession' : ActorMethod<[string], boolean>,
+  'isSystemApiKeySet' : ActorMethod<[], boolean>,
   'makePromptRequest' : ActorMethod<[string], string>,
   'makePromptRequestWithSession' : ActorMethod<[string, string], PromptResult>,
   'registerOpenAiApiKey' : ActorMethod<[string], undefined>,
@@ -60,6 +61,8 @@ export interface _SERVICE {
   'adminResetUsage' : ActorMethod<[string, string], boolean>,
   'adminDeleteUser' : ActorMethod<[string, string], boolean>,
   'setUserPlan' : ActorMethod<[string, string], boolean>,
+  'adminSetSystemApiKey' : ActorMethod<[string, string], boolean>,
+  'adminGetSystemApiKey' : ActorMethod<[string], string>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

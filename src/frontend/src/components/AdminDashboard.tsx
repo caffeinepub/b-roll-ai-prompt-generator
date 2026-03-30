@@ -9,6 +9,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,8 +29,12 @@ import {
 } from "@/components/ui/table";
 import {
   Crown,
+  Eye,
+  EyeOff,
+  Key,
   MoreHorizontal,
   RefreshCw,
+  Save,
   Search,
   Shield,
   Trash2,
@@ -41,9 +46,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import {
   useAdminDeleteUser,
+  useAdminGetSystemApiKey,
   useAdminResetUsage,
   useAdminSetPlan,
   useAdminSetRole,
+  useAdminSetSystemApiKey,
   useGetAllUsers,
 } from "../hooks/useQueries";
 
@@ -52,10 +59,10 @@ interface AdminDashboardProps {
 }
 
 const PLAN_DAILY_LIMIT: Record<string, number> = {
-  free: 5,
-  starter: 30,
-  pro: 80,
-  elite: 150,
+  free: 3,
+  starter: 25,
+  pro: 100,
+  elite: 300,
 };
 
 function StatCard({
@@ -142,12 +149,33 @@ function PlanBadge({ plan }: { plan: string }) {
 export default function AdminDashboard({ sessionToken }: AdminDashboardProps) {
   const [search, setSearch] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [editingApiKey, setEditingApiKey] = useState(false);
 
   const { data: users = [], isLoading, isError } = useGetAllUsers(sessionToken);
   const setAdminPlan = useAdminSetPlan(sessionToken);
   const setRole = useAdminSetRole(sessionToken);
   const resetUsage = useAdminResetUsage(sessionToken);
   const deleteUser = useAdminDeleteUser(sessionToken);
+
+  const { data: currentApiKey = "" } = useAdminGetSystemApiKey(sessionToken);
+  const setSystemApiKey = useAdminSetSystemApiKey(sessionToken);
+
+  const handleSaveApiKey = async () => {
+    if (!apiKeyInput.trim()) {
+      toast.error("Please enter an API key");
+      return;
+    }
+    try {
+      await setSystemApiKey.mutateAsync(apiKeyInput.trim());
+      setApiKeyInput("");
+      setEditingApiKey(false);
+      toast.success("System API key updated successfully.");
+    } catch {
+      toast.error("Failed to update API key.");
+    }
+  };
 
   const filtered = users.filter((u) =>
     u.email.toLowerCase().includes(search.toLowerCase()),
@@ -211,6 +239,111 @@ export default function AdminDashboard({ sessionToken }: AdminDashboardProps) {
         <p className="text-sm text-muted-foreground ml-12">
           Manage users, subscriptions, and roles
         </p>
+      </div>
+
+      {/* System API Key Card */}
+      <div className="bg-card border border-border/60 rounded-xl p-5 mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center">
+            <Key className="w-4 h-4 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-sm font-semibold text-foreground">
+              System OpenAI API Key
+            </h2>
+            <p className="text-xs text-muted-foreground">
+              Used by all users for prompt generation
+            </p>
+          </div>
+        </div>
+
+        {!editingApiKey ? (
+          <div className="flex items-center gap-3">
+            <div className="flex-1 relative">
+              <Input
+                readOnly
+                type={showApiKey ? "text" : "password"}
+                value={currentApiKey || ""}
+                placeholder={currentApiKey ? "" : "No API key configured"}
+                className="bg-input border-border/60 text-foreground font-mono text-sm pr-10"
+              />
+              {currentApiKey && (
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  {showApiKey ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              )}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditingApiKey(true);
+                setApiKeyInput("");
+              }}
+              className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 text-xs h-9 gap-1.5 shrink-0"
+            >
+              <Key className="w-3.5 h-3.5" />
+              {currentApiKey ? "Update Key" : "Set Key"}
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className="flex-1 relative">
+              <Input
+                type={showApiKey ? "text" : "password"}
+                placeholder="sk-..."
+                value={apiKeyInput}
+                onChange={(e) => setApiKeyInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSaveApiKey()}
+                className="bg-input border-border/60 text-foreground font-mono text-sm pr-10"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showApiKey ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleSaveApiKey}
+              disabled={setSystemApiKey.isPending || !apiKeyInput.trim()}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground text-xs h-9 gap-1.5 shrink-0"
+            >
+              {setSystemApiKey.isPending ? (
+                <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : (
+                <Save className="w-3.5 h-3.5" />
+              )}
+              Save
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setEditingApiKey(false);
+                setApiKeyInput("");
+              }}
+              className="border-border/60 text-muted-foreground hover:text-foreground text-xs h-9 shrink-0"
+            >
+              Cancel
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* Stats row */}
@@ -297,7 +430,7 @@ export default function AdminDashboard({ sessionToken }: AdminDashboardProps) {
             </TableHeader>
             <TableBody>
               {filtered.map((u: UserPublic, idx: number) => {
-                const limit = PLAN_DAILY_LIMIT[u.plan] ?? 5;
+                const limit = PLAN_DAILY_LIMIT[u.plan] ?? 3;
                 return (
                   <TableRow
                     key={u.email}

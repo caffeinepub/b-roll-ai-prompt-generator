@@ -35,8 +35,8 @@ import PricingPage, {
 import ResultsPanel from "./components/ResultsPanel";
 import { useAuth } from "./hooks/useAuth";
 import {
-  useIsApiKeyRegisteredWithSession,
-  useRegisterApiKeyWithSession,
+  useAdminSetSystemApiKey,
+  useIsSystemApiKeySet,
 } from "./hooks/useQueries";
 
 export type FormData = {
@@ -99,15 +99,15 @@ function MainApp() {
   const [showKey, setShowKey] = useState(false);
 
   const { data: apiKeyRegistered, isLoading: checkingKey } =
-    useIsApiKeyRegisteredWithSession(sessionToken);
+    useIsSystemApiKeySet();
   const { mutateAsync: registerKey, isPending: savingKey } =
-    useRegisterApiKeyWithSession(sessionToken);
+    useAdminSetSystemApiKey(sessionToken);
 
   useEffect(() => {
-    if (!checkingKey && apiKeyRegistered === false) {
+    if (!checkingKey && apiKeyRegistered === false && user?.role === "admin") {
       setShowApiModal(true);
     }
-  }, [checkingKey, apiKeyRegistered]);
+  }, [checkingKey, apiKeyRegistered, user?.role]);
 
   const handleSaveApiKey = async () => {
     if (!apiKeyInput.trim()) {
@@ -225,16 +225,18 @@ function MainApp() {
 
           {/* Right actions */}
           <div className="flex items-center gap-2">
-            <Button
-              data-ocid="nav.api_key.button"
-              variant="outline"
-              size="sm"
-              onClick={() => setShowApiModal(true)}
-              className="border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 text-xs h-8 gap-1.5"
-            >
-              <Key className="w-3 h-3" />
-              API Key
-            </Button>
+            {user?.role === "admin" && (
+              <Button
+                data-ocid="nav.api_key.button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowApiModal(true)}
+                className="border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 text-xs h-8 gap-1.5"
+              >
+                <Key className="w-3 h-3" />
+                API Key
+              </Button>
+            )}
 
             {/* User info + plan + usage + sign out */}
             {user && (
@@ -420,12 +422,12 @@ function MainApp() {
                 <Key className="w-4 h-4 text-primary" />
               </div>
               <DialogTitle className="text-foreground font-bold">
-                Enter OpenAI API Key
+                System OpenAI API Key
               </DialogTitle>
             </div>
             <DialogDescription className="text-muted-foreground text-sm">
-              Your API key is stored securely in the backend canister and used
-              to generate prompts via OpenAI GPT-4o.
+              This API key is used by all users in the system. Only admins can
+              set or update it.
             </DialogDescription>
           </DialogHeader>
 

@@ -1,26 +1,36 @@
 # B-Roll AI Prompt Generator
 
 ## Current State
-- Four subscription plans: Free (5/day), Starter ($7/30/day), Pro ($17/80/day, batch 3), Elite ($27/150/day, batch 5)
-- Backend enforces daily limits via `getDailyLimit()` with `FREE_DAILY_LIMIT = 5`
-- Frontend `PLAN_LIMITS` constant in `PricingPage.tsx` mirrors backend limits and drives batch UI in `GenerateForm.tsx`
-- Pricing page displays plan cards with current plan label and upgrade/downgrade buttons
+- Full-stack app with auth, subscription tiers, admin dashboard, per-user OpenAI API key storage.
+- Each user stores their own API key (`apiKeysByEmail` map) and must enter it on first load.
+- After logout, state is cleared but no forced page reload happens.
+- API Key button is visible to all users in the nav.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Nothing new to add
+- `systemConfig` map in backend for system-wide settings.
+- `adminSetSystemApiKey(sessionToken, key)` - admin-only, stores single system-wide API key.
+- `adminGetSystemApiKey(sessionToken)` - admin-only, returns current key value.
+- `isSystemApiKeySet()` - public query, returns bool.
+- API key management section in AdminDashboard with show/hide and save.
+- Hooks: `useAdminSetSystemApiKey`, `useAdminGetSystemApiKey`, `useIsSystemApiKeySet`.
 
 ### Modify
-- Backend `FREE_DAILY_LIMIT`: 5 → 3
-- Backend `getDailyLimit`: starter 30→25, pro 80→100, elite 150→300
-- Frontend `PLAN_LIMITS`: free 5→3, starter 30→25, pro maxBatch 3→5, elite dailyLimit 150→300 and maxBatch 5→10
-- Pricing page PLANS data: update displayed request counts, ELITE price $27→$37, batch counts updated (pro: up to 5, elite: up to 10)
+- `makePromptRequestWithSession` - use system API key from `systemConfig` instead of per-user `apiKeysByEmail`.
+- `logout()` in `useAuth.ts` - add `window.location.reload()` after clearing state to ensure login page shows on refresh.
+- API Key button in `App.tsx` nav - restrict to admin users only.
+- API Key modal in `App.tsx` - change title/description to indicate it sets the system-wide key for all users.
+- Auto-show modal logic - only trigger for admins when system key is not set.
 
 ### Remove
-- Nothing to remove
+- Per-user API key prompt shown to all users on login.
 
 ## Implementation Plan
-1. Update `FREE_DAILY_LIMIT` and `getDailyLimit()` in `src/backend/main.mo`
-2. Update `PLAN_LIMITS` object in `src/frontend/src/components/PricingPage.tsx`
-3. Update `PLANS` array in `PricingPage.tsx`: request counts, elite price ($37), batch descriptions
+1. Add `systemConfig` Map and three new backend functions.
+2. Update `makePromptRequestWithSession` to read from `systemConfig`.
+3. Update all binding files (did.d.ts, did.js, backend.d.ts, backend.ts) with new functions.
+4. Fix logout in `useAuth.ts` to call `window.location.reload()`.
+5. In `App.tsx`: restrict API Key nav button and modal to admin only; update modal copy.
+6. In `AdminDashboard.tsx`: add API key card at top with current key (masked), show/hide toggle, and save button.
+7. Add hooks in `useQueries.ts` for the three new backend functions.

@@ -201,3 +201,44 @@ export function useAdminSetPlan(sessionToken: string | null) {
       queryClient.invalidateQueries({ queryKey: ["adminUsers"] }),
   });
 }
+
+// System API key (admin-only)
+
+export function useIsSystemApiKeySet() {
+  return useQuery<boolean>({
+    queryKey: ["systemApiKeySet"],
+    queryFn: async () => {
+      const actor = await getBackend();
+      return (actor as any).isSystemApiKeySet();
+    },
+    staleTime: 30_000,
+  });
+}
+
+export function useAdminSetSystemApiKey(sessionToken: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (key: string) => {
+      if (!sessionToken) throw new Error("No session");
+      const actor = await getBackend();
+      return (actor as any).adminSetSystemApiKey(sessionToken, key);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["systemApiKeySet"] });
+      queryClient.invalidateQueries({ queryKey: ["adminSystemApiKey"] });
+    },
+  });
+}
+
+export function useAdminGetSystemApiKey(sessionToken: string | null) {
+  return useQuery<string>({
+    queryKey: ["adminSystemApiKey", sessionToken],
+    queryFn: async () => {
+      if (!sessionToken) return "";
+      const actor = await getBackend();
+      return (actor as any).adminGetSystemApiKey(sessionToken);
+    },
+    enabled: !!sessionToken,
+    staleTime: 0,
+  });
+}

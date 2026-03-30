@@ -49,6 +49,7 @@ export interface backendInterface {
     getPromptHistory(callerOnly: boolean): Promise<Array<PromptHistoryEntry>>;
     isApiKeyRegistered(): Promise<boolean>;
     isApiKeyRegisteredWithSession(sessionToken: string): Promise<boolean>;
+    isSystemApiKeySet(): Promise<boolean>;
     makePromptRequest(sceneDetails: string): Promise<string>;
     makePromptRequestWithSession(sessionToken: string, promptContent: string): Promise<PromptResult>;
     registerOpenAiApiKey(openAiApiKey: string): Promise<void>;
@@ -66,4 +67,6 @@ export interface backendInterface {
     adminResetUsage(sessionToken: string, email: string): Promise<boolean>;
     adminDeleteUser(sessionToken: string, email: string): Promise<boolean>;
     setUserPlan(sessionToken: string, plan: string): Promise<boolean>;
+    adminSetSystemApiKey(sessionToken: string, key: string): Promise<boolean>;
+    adminGetSystemApiKey(sessionToken: string): Promise<string>;
 }

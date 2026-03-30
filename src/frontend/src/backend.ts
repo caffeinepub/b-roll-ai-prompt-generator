@@ -148,6 +148,9 @@ export interface backendInterface {
     adminResetUsage(sessionToken: string, email: string): Promise<boolean>;
     adminDeleteUser(sessionToken: string, email: string): Promise<boolean>;
     setUserPlan(sessionToken: string, plan: string): Promise<boolean>;
+    isSystemApiKeySet(): Promise<boolean>;
+    adminSetSystemApiKey(sessionToken: string, key: string): Promise<boolean>;
+    adminGetSystemApiKey(sessionToken: string): Promise<string>;
     _initializeAccessControlWithSecret(secret: string): Promise<void>;
 }
 export class Backend implements backendInterface {
@@ -428,6 +431,45 @@ export class Backend implements backendInterface {
             }
         } else {
             return await this.actor.setUserPlan(sessionToken, plan);
+        }
+    }
+    async isSystemApiKeySet(): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.isSystemApiKeySet();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            return await this.actor.isSystemApiKeySet();
+        }
+    }
+    async adminSetSystemApiKey(arg0: string, arg1: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminSetSystemApiKey(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            return await this.actor.adminSetSystemApiKey(arg0, arg1);
+        }
+    }
+    async adminGetSystemApiKey(arg0: string): Promise<string> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminGetSystemApiKey(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            return await this.actor.adminGetSystemApiKey(arg0);
         }
     }
     async _initializeAccessControlWithSecret(secret: string): Promise<void> {

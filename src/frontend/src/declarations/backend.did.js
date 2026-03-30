@@ -53,6 +53,7 @@ export const idlService = IDL.Service({
   'getPromptHistory' : IDL.Func([IDL.Bool], [IDL.Vec(PromptHistoryEntry)], ['query']),
   'isApiKeyRegistered' : IDL.Func([], [IDL.Bool], ['query']),
   'isApiKeyRegisteredWithSession' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
+  'isSystemApiKeySet' : IDL.Func([], [IDL.Bool], ['query']),
   'makePromptRequest' : IDL.Func([IDL.Text], [IDL.Text], []),
   'makePromptRequestWithSession' : IDL.Func([IDL.Text, IDL.Text], [PromptResult], []),
   'registerOpenAiApiKey' : IDL.Func([IDL.Text], [], []),
@@ -70,6 +71,8 @@ export const idlService = IDL.Service({
   'adminResetUsage' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   'adminDeleteUser' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   'setUserPlan' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+  'adminSetSystemApiKey' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+  'adminGetSystemApiKey' : IDL.Func([IDL.Text], [IDL.Text], ['query']),
 });
 
 export const idlInitArgs = [];
@@ -120,6 +123,7 @@ export const idlFactory = ({ IDL }) => {
     'getPromptHistory' : IDL.Func([IDL.Bool], [IDL.Vec(PromptHistoryEntry)], ['query']),
     'isApiKeyRegistered' : IDL.Func([], [IDL.Bool], ['query']),
     'isApiKeyRegisteredWithSession' : IDL.Func([IDL.Text], [IDL.Bool], ['query']),
+    'isSystemApiKeySet' : IDL.Func([], [IDL.Bool], ['query']),
     'makePromptRequest' : IDL.Func([IDL.Text], [IDL.Text], []),
     'makePromptRequestWithSession' : IDL.Func([IDL.Text, IDL.Text], [PromptResult], []),
     'registerOpenAiApiKey' : IDL.Func([IDL.Text], [], []),
@@ -137,6 +141,8 @@ export const idlFactory = ({ IDL }) => {
     'adminResetUsage' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
     'adminDeleteUser' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
     'setUserPlan' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+    'adminSetSystemApiKey' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+    'adminGetSystemApiKey' : IDL.Func([IDL.Text], [IDL.Text], ['query']),
   });
 };
 

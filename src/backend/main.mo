@@ -102,6 +102,9 @@ actor {
   let sessions = Map.empty<Text, Text>();
   var userCounter : Nat = 0;
 
+  // System-wide configuration (e.g., the shared OpenAI API key).
+  let systemConfig = Map.empty<Text, Text>();
+
   // Seed demo user
   let _demoSeed = do {
     users.add("demo@demo.dm", {
@@ -378,6 +381,32 @@ actor {
     true;
   };
 
+  // ── System API Key (admin-only, used by all users) ──────────────────────────
+
+  // Admin sets the single system-wide OpenAI API key used for all prompt requests.
+  public shared func adminSetSystemApiKey(sessionToken : Text, key : Text) : async Bool {
+    if (not isAdminSession(sessionToken)) { return false };
+    if (key == "") { return false };
+    systemConfig.add("openai_api_key", key);
+    true;
+  };
+
+  // Admin retrieves the current system API key (full value, for display).
+  public query func adminGetSystemApiKey(sessionToken : Text) : async Text {
+    if (not isAdminSession(sessionToken)) { return "" };
+    switch (systemConfig.get("openai_api_key")) {
+      case (?key) { key };
+      case (null) { "" };
+    };
+  };
+
+  // Any authenticated session can check whether a system API key is configured.
+  public query func isSystemApiKeySet() : async Bool {
+    systemConfig.containsKey("openai_api_key");
+  };
+
+  // ── Legacy per-user key registration (kept for ABI compatibility) ───────────
+
   public shared func registerOpenAiApiKeyWithSession(sessionToken : Text, key : Text) : async () {
     if (key == "") { Runtime.trap("API key cannot be empty") };
     switch (sessions.get(sessionToken)) {
@@ -387,9 +416,10 @@ actor {
   };
 
   public query func isApiKeyRegisteredWithSession(sessionToken : Text) : async Bool {
+    // Now reflects whether the system key is set (same for all users).
     switch (sessions.get(sessionToken)) {
       case (null) { false };
-      case (?email) { apiKeysByEmail.containsKey(email) };
+      case (?_) { systemConfig.containsKey("openai_api_key") };
     };
   };
 
@@ -407,8 +437,8 @@ actor {
             if (currentRequests >= limit) {
               return #err("DAILY_LIMIT_REACHED");
             };
-            switch (apiKeysByEmail.get(email)) {
-              case (null) { return #err("No API key registered") };
+            switch (systemConfig.get("openai_api_key")) {
+              case (null) { return #err("No system API key configured. Please ask an admin to set the OpenAI API key.") };
               case (?apiKey) {
                 try {
                   let result = await openaiApiRequest(promptContent, apiKey, transform);
@@ -422,7 +452,7 @@ actor {
                   updatePromptHistory(promptContent, result);
                   #ok(result);
                 } catch e {
-                  #err("Request failed. Please check your API key.");
+                  #err("Request failed. Please check the system API key.");
                 };
               };
             };

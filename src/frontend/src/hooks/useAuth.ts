@@ -112,6 +112,7 @@ export function useAuth() {
     localStorage.removeItem(SESSION_KEY);
     setSessionToken(null);
     setUser(null);
+    window.location.reload();
   }, []);
 
   return { user, sessionToken, isLoading, login, signUp, logout, refreshUser };

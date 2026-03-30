@@ -7,10 +7,12 @@ export interface AuthUser {
   id: string;
   email: string;
   createdAt: bigint;
-  subscriptionStatus: string;
+  plan: string;
   requestsToday: bigint;
   lastRequestDate: bigint;
   role: string;
+  stripeCustomerId: string;
+  stripeSubscriptionId: string;
 }
 
 async function getBackend() {

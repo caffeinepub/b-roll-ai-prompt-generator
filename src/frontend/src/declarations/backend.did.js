@@ -32,10 +32,12 @@ export const UserPublic = IDL.Record({
   'id' : IDL.Text,
   'email' : IDL.Text,
   'createdAt' : IDL.Int,
-  'subscriptionStatus' : IDL.Text,
+  'plan' : IDL.Text,
   'requestsToday' : IDL.Nat,
   'lastRequestDate' : IDL.Nat,
   'role' : IDL.Text,
+  'stripeCustomerId' : IDL.Text,
+  'stripeSubscriptionId' : IDL.Text,
 });
 export const AuthResult = IDL.Variant({
   'ok' : IDL.Text,
@@ -62,10 +64,12 @@ export const idlService = IDL.Service({
   'logout' : IDL.Func([IDL.Text], [], []),
   'getCurrentUser' : IDL.Func([IDL.Text], [IDL.Opt(UserPublic)], ['query']),
   'getAllUsers' : IDL.Func([IDL.Text], [IDL.Vec(UserPublic)], ['query']),
+  'adminSetPlan' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Bool], []),
   'adminSetSubscription' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Bool], []),
   'adminSetRole' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Bool], []),
   'adminResetUsage' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   'adminDeleteUser' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+  'setUserPlan' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
 });
 
 export const idlInitArgs = [];
@@ -96,10 +100,12 @@ export const idlFactory = ({ IDL }) => {
     'id' : IDL.Text,
     'email' : IDL.Text,
     'createdAt' : IDL.Int,
-    'subscriptionStatus' : IDL.Text,
+    'plan' : IDL.Text,
     'requestsToday' : IDL.Nat,
     'lastRequestDate' : IDL.Nat,
     'role' : IDL.Text,
+    'stripeCustomerId' : IDL.Text,
+    'stripeSubscriptionId' : IDL.Text,
   });
   const AuthResult = IDL.Variant({
     'ok' : IDL.Text,
@@ -125,10 +131,12 @@ export const idlFactory = ({ IDL }) => {
     'logout' : IDL.Func([IDL.Text], [], []),
     'getCurrentUser' : IDL.Func([IDL.Text], [IDL.Opt(UserPublic)], ['query']),
     'getAllUsers' : IDL.Func([IDL.Text], [IDL.Vec(UserPublic)], ['query']),
+    'adminSetPlan' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Bool], []),
     'adminSetSubscription' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Bool], []),
     'adminSetRole' : IDL.Func([IDL.Text, IDL.Text, IDL.Text], [IDL.Bool], []),
     'adminResetUsage' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
     'adminDeleteUser' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
+    'setUserPlan' : IDL.Func([IDL.Text, IDL.Text], [IDL.Bool], []),
   });
 };
 

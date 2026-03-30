@@ -35,10 +35,12 @@ export interface UserPublic {
     id: string;
     email: string;
     createdAt: bigint;
-    subscriptionStatus: string;
+    plan: string;
     requestsToday: bigint;
     lastRequestDate: bigint;
     role: string;
+    stripeCustomerId: string;
+    stripeSubscriptionId: string;
 }
 export type AuthResult = { ok: string } | { err: string };
 export type PromptResult = { ok: string } | { err: string };
@@ -58,8 +60,10 @@ export interface backendInterface {
     logout(sessionToken: string): Promise<void>;
     getCurrentUser(sessionToken: string): Promise<[] | [UserPublic]>;
     getAllUsers(sessionToken: string): Promise<Array<UserPublic>>;
+    adminSetPlan(sessionToken: string, email: string, plan: string): Promise<boolean>;
     adminSetSubscription(sessionToken: string, email: string, status: string): Promise<boolean>;
     adminSetRole(sessionToken: string, email: string, role: string): Promise<boolean>;
     adminResetUsage(sessionToken: string, email: string): Promise<boolean>;
     adminDeleteUser(sessionToken: string, email: string): Promise<boolean>;
+    setUserPlan(sessionToken: string, plan: string): Promise<boolean>;
 }

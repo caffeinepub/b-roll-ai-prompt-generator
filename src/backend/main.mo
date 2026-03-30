@@ -25,7 +25,6 @@ actor {
     };
   };
 
-  // Core user record - kept at original shape to stay compatible with stored stable data.
   type User = {
     id : Text;
     email : Text;
@@ -33,25 +32,38 @@ actor {
     createdAt : Int;
   };
 
-  // Extension fields stored separately to avoid stable-type incompatibility on upgrade.
-  type UserExtension = {
+  // V1 type: matches what was stored in the live canister.
+  // Kept for stable-variable upgrade compatibility (M0170).
+  // Data is migrated to userExtensionsNew in postupgrade, then cleared.
+  type UserExtensionV1 = {
     subscriptionStatus : Text; // "free" or "paid"
     requestsToday : Nat;
-    lastRequestDate : Nat; // days since Unix epoch
+    lastRequestDate : Nat;
+  };
+
+  // Current extension type with plan-based tiers and Stripe prep fields.
+  type UserExtension = {
+    plan : Text; // "free" | "starter" | "pro" | "elite"
+    requestsToday : Nat;
+    lastRequestDate : Nat;
+    stripeCustomerId : Text;
+    stripeSubscriptionId : Text;
   };
 
   type UserPublic = {
     id : Text;
     email : Text;
     createdAt : Int;
-    subscriptionStatus : Text;
+    plan : Text;
     requestsToday : Nat;
     lastRequestDate : Nat;
     role : Text; // "user" or "admin"
+    stripeCustomerId : Text;
+    stripeSubscriptionId : Text;
   };
 
   type AuthResult = {
-    #ok : Text; // session token
+    #ok : Text;
     #err : Text;
   };
 
@@ -60,21 +72,37 @@ actor {
     #err : Text;
   };
 
-  let FREE_DAILY_LIMIT : Nat = 5;
+  // Kept for upgrade compatibility (M0169): was a stable variable in the previous version.
+  let FREE_DAILY_LIMIT : Nat = 3;
+
+  // Per-plan daily request limits.
+  func getDailyLimit(plan : Text) : Nat {
+    if (plan == "starter") { 25 }
+    else if (plan == "pro") { 100 }
+    else if (plan == "elite") { 300 }
+    else { FREE_DAILY_LIMIT }; // free
+  };
 
   let registeredApiKeys = Map.empty<Text, ApiKey>();
-  let apiKeysByEmail = Map.empty<Text, ApiKey>(); // email -> ApiKey (session-based)
+  let apiKeysByEmail = Map.empty<Text, ApiKey>();
   let history = List.empty<PromptHistoryEntry>();
 
-  // Auth state
-  let users = Map.empty<Text, User>(); // email -> User (original shape, upgrade-compatible)
-  let userExtensions = Map.empty<Text, UserExtension>(); // email -> extension fields
-  let userRoles = Map.empty<Text, Text>(); // email -> "user" | "admin"
-  let userEmailList = List.empty<Text>(); // ordered registration list for admin iteration
-  let sessions = Map.empty<Text, Text>(); // token -> email
+  let users = Map.empty<Text, User>();
+
+  // LEGACY stable var: same name and type as the live canister's userExtensions.
+  // Motoko deserializes old stable memory into this. Migrated to userExtensionsNew
+  // in postupgrade, then cleared to free memory.
+  let userExtensions = Map.empty<Text, UserExtensionV1>();
+
+  // NEW stable var: holds all current UserExtension data after migration.
+  let userExtensionsNew = Map.empty<Text, UserExtension>();
+
+  let userRoles = Map.empty<Text, Text>();
+  let userEmailList = List.empty<Text>();
+  let sessions = Map.empty<Text, Text>();
   var userCounter : Nat = 0;
 
-  // Seed demo user on canister initialization
+  // Seed demo user
   let _demoSeed = do {
     users.add("demo@demo.dm", {
       id = "demo_user_1";
@@ -82,15 +110,17 @@ actor {
       passwordHash = "hash:demo1234";
       createdAt = 0;
     });
-    userExtensions.add("demo@demo.dm", {
-      subscriptionStatus = "free";
+    userExtensionsNew.add("demo@demo.dm", {
+      plan = "free";
       requestsToday = 0;
       lastRequestDate = 0;
+      stripeCustomerId = "";
+      stripeSubscriptionId = "";
     });
     userEmailList.add("demo@demo.dm");
   };
 
-  // Seed admin user on canister initialization
+  // Seed admin user
   let _adminSeed = do {
     users.add("medes608@gmail.com", {
       id = "admin_user_0";
@@ -98,24 +128,49 @@ actor {
       passwordHash = "hash:Admin@1234";
       createdAt = 0;
     });
-    userExtensions.add("medes608@gmail.com", {
-      subscriptionStatus = "paid";
+    userExtensionsNew.add("medes608@gmail.com", {
+      plan = "elite";
       requestsToday = 0;
       lastRequestDate = 0;
+      stripeCustomerId = "";
+      stripeSubscriptionId = "";
     });
     userRoles.add("medes608@gmail.com", "admin");
     userEmailList.add("medes608@gmail.com");
   };
 
-  // Returns the extension for a user, with safe defaults for existing users who lack one.
-  func getExtension(email : Text) : UserExtension {
-    switch (userExtensions.get(email)) {
-      case (?ext) { ext };
-      case (null) { { subscriptionStatus = "free"; requestsToday = 0; lastRequestDate = 0 } };
+  // Runs after each canister upgrade. Migrates V1 extension data to the new format.
+  // On a fresh deploy userExtensions is empty so no migration runs.
+  system func postupgrade() {
+    if (userExtensions.size() > 0) {
+      let emails = userEmailList.toArray();
+      for (email in emails.vals()) {
+        switch (userExtensions.get(email)) {
+          case (?ext) {
+            let newPlan = if (ext.subscriptionStatus == "paid") { "pro" } else { "free" };
+            userExtensionsNew.add(email, {
+              plan = newPlan;
+              requestsToday = ext.requestsToday;
+              lastRequestDate = ext.lastRequestDate;
+              stripeCustomerId = "";
+              stripeSubscriptionId = "";
+            });
+          };
+          case (null) {};
+        };
+      };
+      userExtensions.clear();
     };
   };
 
-  // Returns the role for a user, defaulting to "user".
+  // Returns the extension for a user, with safe defaults.
+  func getExtension(email : Text) : UserExtension {
+    switch (userExtensionsNew.get(email)) {
+      case (?ext) { ext };
+      case (null) { { plan = "free"; requestsToday = 0; lastRequestDate = 0; stripeCustomerId = ""; stripeSubscriptionId = "" } };
+    };
+  };
+
   func getRole(email : Text) : Text {
     switch (userRoles.get(email)) {
       case (?role) { role };
@@ -123,7 +178,6 @@ actor {
     };
   };
 
-  // Returns true if the given session belongs to an admin user.
   func isAdminSession(sessionToken : Text) : Bool {
     switch (sessions.get(sessionToken)) {
       case (null) { false };
@@ -131,21 +185,21 @@ actor {
     };
   };
 
-  // Builds a full UserPublic record from core User + extension + role.
   func buildUserPublic(email : Text, user : User) : UserPublic {
     let ext = getExtension(email);
     {
       id = user.id;
       email = user.email;
       createdAt = user.createdAt;
-      subscriptionStatus = ext.subscriptionStatus;
+      plan = ext.plan;
       requestsToday = ext.requestsToday;
       lastRequestDate = ext.lastRequestDate;
       role = getRole(email);
+      stripeCustomerId = ext.stripeCustomerId;
+      stripeSubscriptionId = ext.stripeSubscriptionId;
     };
   };
 
-  // Returns today as number of days since Unix epoch
   func todayInDays() : Nat {
     let ns : Int = Time.now();
     if (ns <= 0) { return 0 };
@@ -184,10 +238,12 @@ actor {
           createdAt = Time.now();
         };
         users.add(email, user);
-        userExtensions.add(email, {
-          subscriptionStatus = "free";
+        userExtensionsNew.add(email, {
+          plan = "free";
           requestsToday = 0;
           lastRequestDate = 0;
+          stripeCustomerId = "";
+          stripeSubscriptionId = "";
         });
         userEmailList.add(email);
         let token = generateToken(email);
@@ -221,42 +277,78 @@ actor {
       case (?email) {
         switch (users.get(email)) {
           case (null) { null };
-          case (?user) {
-            ?buildUserPublic(email, user);
-          };
+          case (?user) { ?buildUserPublic(email, user) };
         };
       };
     };
   };
 
-  // Admin: returns all registered users. Returns empty array if session is not admin.
   public query func getAllUsers(sessionToken : Text) : async [UserPublic] {
     if (not isAdminSession(sessionToken)) { return [] };
     let emailArr = userEmailList.toArray();
     let result = List.empty<UserPublic>();
     for (email in emailArr.vals()) {
       switch (users.get(email)) {
-        case (null) {}; // skip deleted users
+        case (null) {};
         case (?user) { result.add(buildUserPublic(email, user)) };
       };
     };
     result.toArray();
   };
 
-  // Admin: set subscription status for a user.
-  public shared func adminSetSubscription(sessionToken : Text, email : Text, status : Text) : async Bool {
+  public shared func adminSetPlan(sessionToken : Text, email : Text, plan : Text) : async Bool {
     if (not isAdminSession(sessionToken)) { return false };
     if (not users.containsKey(email)) { return false };
     let ext = getExtension(email);
-    userExtensions.add(email, {
-      subscriptionStatus = status;
+    userExtensionsNew.add(email, {
+      plan = plan;
       requestsToday = ext.requestsToday;
       lastRequestDate = ext.lastRequestDate;
+      stripeCustomerId = ext.stripeCustomerId;
+      stripeSubscriptionId = ext.stripeSubscriptionId;
     });
     true;
   };
 
-  // Admin: set role for a user.
+  // Legacy: kept for admin dashboard backward compat. Maps "paid" -> "pro", "free" -> "free".
+  public shared func adminSetSubscription(sessionToken : Text, email : Text, status : Text) : async Bool {
+    if (not isAdminSession(sessionToken)) { return false };
+    if (not users.containsKey(email)) { return false };
+    let ext = getExtension(email);
+    let newPlan = if (status == "paid") { "pro" } else { "free" };
+    userExtensionsNew.add(email, {
+      plan = newPlan;
+      requestsToday = ext.requestsToday;
+      lastRequestDate = ext.lastRequestDate;
+      stripeCustomerId = ext.stripeCustomerId;
+      stripeSubscriptionId = ext.stripeSubscriptionId;
+    });
+    true;
+  };
+
+  // Self-service: allows the authenticated user to change their own plan.
+  public shared func setUserPlan(sessionToken : Text, plan : Text) : async Bool {
+    switch (sessions.get(sessionToken)) {
+      case (null) { false };
+      case (?email) {
+        switch (users.get(email)) {
+          case (null) { false };
+          case (?_) {
+            let ext = getExtension(email);
+            userExtensionsNew.add(email, {
+              plan = plan;
+              requestsToday = ext.requestsToday;
+              lastRequestDate = ext.lastRequestDate;
+              stripeCustomerId = ext.stripeCustomerId;
+              stripeSubscriptionId = ext.stripeSubscriptionId;
+            });
+            true;
+          };
+        };
+      };
+    };
+  };
+
   public shared func adminSetRole(sessionToken : Text, email : Text, role : Text) : async Bool {
     if (not isAdminSession(sessionToken)) { return false };
     if (not users.containsKey(email)) { return false };
@@ -264,49 +356,43 @@ actor {
     true;
   };
 
-  // Admin: reset daily usage counters for a user.
   public shared func adminResetUsage(sessionToken : Text, email : Text) : async Bool {
     if (not isAdminSession(sessionToken)) { return false };
     if (not users.containsKey(email)) { return false };
     let ext = getExtension(email);
-    userExtensions.add(email, {
-      subscriptionStatus = ext.subscriptionStatus;
+    userExtensionsNew.add(email, {
+      plan = ext.plan;
       requestsToday = 0;
       lastRequestDate = 0;
+      stripeCustomerId = ext.stripeCustomerId;
+      stripeSubscriptionId = ext.stripeSubscriptionId;
     });
     true;
   };
 
-  // Admin: delete a user entirely.
   public shared func adminDeleteUser(sessionToken : Text, email : Text) : async Bool {
     if (not isAdminSession(sessionToken)) { return false };
     ignore users.remove(email);
-    ignore userExtensions.remove(email);
+    ignore userExtensionsNew.remove(email);
     ignore userRoles.remove(email);
     true;
   };
 
-  // Session-based API key management
   public shared func registerOpenAiApiKeyWithSession(sessionToken : Text, key : Text) : async () {
     if (key == "") { Runtime.trap("API key cannot be empty") };
     switch (sessions.get(sessionToken)) {
       case (null) { Runtime.trap("Invalid session") };
-      case (?email) {
-        apiKeysByEmail.add(email, key);
-      };
+      case (?email) { apiKeysByEmail.add(email, key) };
     };
   };
 
   public query func isApiKeyRegisteredWithSession(sessionToken : Text) : async Bool {
     switch (sessions.get(sessionToken)) {
       case (null) { false };
-      case (?email) {
-        apiKeysByEmail.containsKey(email);
-      };
+      case (?email) { apiKeysByEmail.containsKey(email) };
     };
   };
 
-  // Session-based prompt request with usage tracking and daily limit enforcement
   public shared func makePromptRequestWithSession(sessionToken : Text, promptContent : Text) : async PromptResult {
     switch (sessions.get(sessionToken)) {
       case (null) { return #err("Not authenticated") };
@@ -316,24 +402,22 @@ actor {
           case (?_) {
             let ext = getExtension(email);
             let today = todayInDays();
-            // Reset counter if it's a new day
             let currentRequests : Nat = if (ext.lastRequestDate != today) { 0 } else { ext.requestsToday };
-
-            // Enforce free tier daily limit
-            if (ext.subscriptionStatus == "free" and currentRequests >= FREE_DAILY_LIMIT) {
+            let limit = getDailyLimit(ext.plan);
+            if (currentRequests >= limit) {
               return #err("DAILY_LIMIT_REACHED");
             };
-
             switch (apiKeysByEmail.get(email)) {
               case (null) { return #err("No API key registered") };
               case (?apiKey) {
                 try {
                   let result = await openaiApiRequest(promptContent, apiKey, transform);
-                  // Update usage counters in userExtensions
-                  userExtensions.add(email, {
-                    subscriptionStatus = ext.subscriptionStatus;
+                  userExtensionsNew.add(email, {
+                    plan = ext.plan;
                     requestsToday = currentRequests + 1;
                     lastRequestDate = today;
+                    stripeCustomerId = ext.stripeCustomerId;
+                    stripeSubscriptionId = ext.stripeSubscriptionId;
                   });
                   updatePromptHistory(promptContent, result);
                   #ok(result);
@@ -356,7 +440,6 @@ actor {
     };
   };
 
-  // Escape text for safe inclusion inside a JSON string value
   func escapeJson(text : Text) : Text {
     var result = "";
     for (c in text.chars()) {
@@ -379,40 +462,26 @@ actor {
 
   func openaiApiRequest(promptContent : Text, apiKey : ApiKey, transform : OutCall.Transform) : async Text {
     if (apiKey == "") { Runtime.trap("Empty OpenAI API key") };
-
     let escaped = escapeJson(promptContent);
-
     let json =
       "{" #
       "\"model\":\"gpt-4o\", " #
       "\"messages\": [{\"role\": \"user\", \"content\": " #
       "\"" # escaped # "\"}]," #
       "\"max_tokens\": 2048 }";
-
     let url = "https://api.openai.com/v1/chat/completions";
-
     let headers = [
-      {
-        name = "Authorization";
-        value = "Bearer " # apiKey;
-      },
-      {
-        name = "Content-Type";
-        value = "application/json";
-      },
+      { name = "Authorization"; value = "Bearer " # apiKey },
+      { name = "Content-Type"; value = "application/json" },
     ];
-
     await OutCall.httpPostRequest(url, headers, json, transform);
   };
 
   func updatePromptHistory(promptInput : Text, promptOutput : Text) {
     let currentTime = Time.now();
     history.add({ timestamp = currentTime; promptInput; promptOutput });
-
     let size = history.size();
-    if (size > 20) {
-      history.clear();
-    };
+    if (size > 20) { history.clear() };
   };
 
   public shared ({ caller }) func registerOpenAiApiKey(openAiApiKey : Text) : async () {
@@ -443,7 +512,6 @@ actor {
   public query ({ caller }) func getPromptHistory(callerOnly : Bool) : async [PromptHistoryEntry] {
     let historyValues = history.toArray();
     let sortedHistory = historyValues.sort();
-
     if (callerOnly) {
       let filtered = sortedHistory.filter(
         func ({ promptInput }) {

@@ -42,14 +42,21 @@ import { toast } from "sonner";
 import {
   useAdminDeleteUser,
   useAdminResetUsage,
+  useAdminSetPlan,
   useAdminSetRole,
-  useAdminSetSubscription,
   useGetAllUsers,
 } from "../hooks/useQueries";
 
 interface AdminDashboardProps {
   sessionToken: string | null;
 }
+
+const PLAN_DAILY_LIMIT: Record<string, number> = {
+  free: 5,
+  starter: 30,
+  pro: 80,
+  elite: 150,
+};
 
 function StatCard({
   icon,
@@ -97,17 +104,37 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 function PlanBadge({ plan }: { plan: string }) {
-  if (plan === "paid") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/15 text-emerald-400 border border-emerald-500/25">
-        <Crown className="w-3 h-3" />
-        Paid
-      </span>
-    );
-  }
+  const configs: Record<
+    string,
+    { label: string; classes: string; icon?: React.ReactNode }
+  > = {
+    free: {
+      label: "Free",
+      classes: "bg-muted/60 text-muted-foreground border-border/40",
+    },
+    starter: {
+      label: "Starter",
+      classes: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+    },
+    pro: {
+      label: "Pro",
+      classes: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
+    },
+    elite: {
+      label: "Elite",
+      classes: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+      icon: <Crown className="w-3 h-3" />,
+    },
+  };
+  const cfg = configs[plan] ?? configs.free;
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/20">
-      Free
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border ${
+        cfg.classes
+      }`}
+    >
+      {cfg.icon}
+      {cfg.label}
     </span>
   );
 }
@@ -117,7 +144,7 @@ export default function AdminDashboard({ sessionToken }: AdminDashboardProps) {
   const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
 
   const { data: users = [], isLoading, isError } = useGetAllUsers(sessionToken);
-  const setSubscription = useAdminSetSubscription(sessionToken);
+  const setAdminPlan = useAdminSetPlan(sessionToken);
   const setRole = useAdminSetRole(sessionToken);
   const resetUsage = useAdminResetUsage(sessionToken);
   const deleteUser = useAdminDeleteUser(sessionToken);
@@ -127,15 +154,15 @@ export default function AdminDashboard({ sessionToken }: AdminDashboardProps) {
   );
 
   const totalUsers = users.length;
-  const paidUsers = users.filter((u) => u.subscriptionStatus === "paid").length;
-  const freeUsers = users.filter((u) => u.subscriptionStatus === "free").length;
+  const paidUsers = users.filter((u) => u.plan !== "free").length;
+  const freeUsers = users.filter((u) => u.plan === "free").length;
 
-  const handleSetSubscription = async (email: string, status: string) => {
+  const handleSetPlan = async (email: string, plan: string) => {
     try {
-      await setSubscription.mutateAsync({ email, status });
-      toast.success(`${email} plan updated to ${status}.`);
+      await setAdminPlan.mutateAsync({ email, plan });
+      toast.success(`${email} plan updated to ${plan}.`);
     } catch {
-      toast.error("Failed to update subscription.");
+      toast.error("Failed to update plan.");
     }
   };
 
@@ -196,7 +223,7 @@ export default function AdminDashboard({ sessionToken }: AdminDashboardProps) {
         />
         <StatCard
           icon={<Crown className="w-5 h-5 text-emerald-400" />}
-          label="Paid Users"
+          label="Paid Users (Starter+)"
           value={paidUsers}
           accent="bg-emerald-500/10 border border-emerald-500/20"
         />
@@ -269,122 +296,173 @@ export default function AdminDashboard({ sessionToken }: AdminDashboardProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((u: UserPublic, idx: number) => (
-                <TableRow
-                  key={u.email}
-                  data-ocid={`admin.item.${idx + 1}`}
-                  className="border-border/40 hover:bg-muted/20 transition-colors"
-                >
-                  <TableCell className="font-medium text-foreground text-sm max-w-[220px] truncate">
-                    {u.email}
-                  </TableCell>
-                  <TableCell>
-                    <RoleBadge role={u.role} />
-                  </TableCell>
-                  <TableCell>
-                    <PlanBadge plan={u.subscriptionStatus} />
-                  </TableCell>
-                  <TableCell className="text-sm">
-                    {u.subscriptionStatus === "paid" ? (
-                      <span className="text-emerald-400 font-medium">
-                        Unlimited
-                      </span>
-                    ) : (
+              {filtered.map((u: UserPublic, idx: number) => {
+                const limit = PLAN_DAILY_LIMIT[u.plan] ?? 5;
+                return (
+                  <TableRow
+                    key={u.email}
+                    data-ocid={`admin.item.${idx + 1}`}
+                    className="border-border/40 hover:bg-muted/20 transition-colors"
+                  >
+                    <TableCell className="font-medium text-foreground text-sm max-w-[220px] truncate">
+                      {u.email}
+                    </TableCell>
+                    <TableCell>
+                      <RoleBadge role={u.role} />
+                    </TableCell>
+                    <TableCell>
+                      <PlanBadge plan={u.plan} />
+                    </TableCell>
+                    <TableCell className="text-sm">
                       <span className="text-muted-foreground tabular-nums">
                         {Number(u.requestsToday)}
-                        <span className="text-muted-foreground/50">/5</span>
+                        <span className="text-muted-foreground/50">
+                          /{limit}
+                        </span>
                       </span>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        data-ocid={`admin.row.dropdown_menu.${idx + 1}`}
-                        className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-                        aria-label="Row actions"
-                      >
-                        <MoreHorizontal className="w-4 h-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent
-                        align="end"
-                        className="bg-card border-border/60 text-foreground min-w-[180px]"
-                      >
-                        {/* Subscription */}
-                        {u.subscriptionStatus === "free" ? (
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          data-ocid={`admin.row.dropdown_menu.${idx + 1}`}
+                          className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-border/50 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+                          aria-label="Row actions"
+                        >
+                          <MoreHorizontal className="w-4 h-4" />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent
+                          align="end"
+                          className="bg-card border-border/60 text-foreground min-w-[180px]"
+                        >
+                          {/* Plan management */}
                           <DropdownMenuItem
-                            data-ocid={`admin.row.upgrade.${idx + 1}`}
-                            className="text-emerald-400 focus:text-emerald-300 focus:bg-emerald-500/10 cursor-pointer"
+                            data-ocid={`admin.row.set_free.${idx + 1}`}
+                            className={`cursor-pointer ${
+                              u.plan === "free"
+                                ? "text-muted-foreground/50 pointer-events-none"
+                                : ""
+                            }`}
                             onClick={() =>
-                              handleSetSubscription(u.email, "paid")
+                              u.plan !== "free" &&
+                              handleSetPlan(u.email, "free")
                             }
                           >
-                            <Crown className="w-3.5 h-3.5 mr-2" />
-                            Upgrade to Paid
+                            <span className="w-3.5 h-3.5 mr-2 inline-flex items-center justify-center text-[9px] font-bold rounded-sm bg-muted/60 text-muted-foreground">
+                              F
+                            </span>
+                            Set Free
+                            {u.plan === "free" && (
+                              <span className="ml-auto text-[10px] text-primary">
+                                ✓
+                              </span>
+                            )}
                           </DropdownMenuItem>
-                        ) : (
                           <DropdownMenuItem
-                            data-ocid={`admin.row.downgrade.${idx + 1}`}
-                            className="cursor-pointer"
+                            data-ocid={`admin.row.set_starter.${idx + 1}`}
+                            className={`cursor-pointer ${
+                              u.plan === "starter"
+                                ? "text-blue-400 pointer-events-none"
+                                : "text-blue-400/80 focus:text-blue-300 focus:bg-blue-500/10"
+                            }`}
                             onClick={() =>
-                              handleSetSubscription(u.email, "free")
+                              u.plan !== "starter" &&
+                              handleSetPlan(u.email, "starter")
                             }
                           >
                             <TrendingUp className="w-3.5 h-3.5 mr-2" />
-                            Downgrade to Free
+                            Set Starter
+                            {u.plan === "starter" && (
+                              <span className="ml-auto text-[10px]">✓</span>
+                            )}
                           </DropdownMenuItem>
-                        )}
-
-                        <DropdownMenuSeparator className="bg-border/40" />
-
-                        {/* Role */}
-                        {u.role === "user" ? (
                           <DropdownMenuItem
-                            data-ocid={`admin.row.make_admin.${idx + 1}`}
-                            className="cursor-pointer"
-                            onClick={() => handleSetRole(u.email, "admin")}
+                            data-ocid={`admin.row.set_pro.${idx + 1}`}
+                            className={`cursor-pointer ${
+                              u.plan === "pro"
+                                ? "text-emerald-400 pointer-events-none"
+                                : "text-emerald-400/80 focus:text-emerald-300 focus:bg-emerald-500/10"
+                            }`}
+                            onClick={() =>
+                              u.plan !== "pro" && handleSetPlan(u.email, "pro")
+                            }
                           >
-                            <Shield className="w-3.5 h-3.5 mr-2 text-primary" />
-                            Make Admin
+                            <Crown className="w-3.5 h-3.5 mr-2" />
+                            Set Pro
+                            {u.plan === "pro" && (
+                              <span className="ml-auto text-[10px]">✓</span>
+                            )}
                           </DropdownMenuItem>
-                        ) : (
                           <DropdownMenuItem
-                            data-ocid={`admin.row.remove_admin.${idx + 1}`}
-                            className="cursor-pointer"
-                            onClick={() => handleSetRole(u.email, "user")}
+                            data-ocid={`admin.row.set_elite.${idx + 1}`}
+                            className={`cursor-pointer ${
+                              u.plan === "elite"
+                                ? "text-amber-400 pointer-events-none"
+                                : "text-amber-400/80 focus:text-amber-300 focus:bg-amber-500/10"
+                            }`}
+                            onClick={() =>
+                              u.plan !== "elite" &&
+                              handleSetPlan(u.email, "elite")
+                            }
                           >
-                            <User className="w-3.5 h-3.5 mr-2" />
-                            Remove Admin
+                            <Crown className="w-3.5 h-3.5 mr-2" />
+                            Set Elite
+                            {u.plan === "elite" && (
+                              <span className="ml-auto text-[10px]">✓</span>
+                            )}
                           </DropdownMenuItem>
-                        )}
 
-                        <DropdownMenuSeparator className="bg-border/40" />
+                          <DropdownMenuSeparator className="bg-border/40" />
 
-                        {/* Reset usage */}
-                        <DropdownMenuItem
-                          data-ocid={`admin.row.reset_usage.${idx + 1}`}
-                          className="cursor-pointer"
-                          onClick={() => handleResetUsage(u.email)}
-                        >
-                          <RefreshCw className="w-3.5 h-3.5 mr-2" />
-                          Reset Usage
-                        </DropdownMenuItem>
+                          {/* Role */}
+                          {u.role === "user" ? (
+                            <DropdownMenuItem
+                              data-ocid={`admin.row.make_admin.${idx + 1}`}
+                              className="cursor-pointer"
+                              onClick={() => handleSetRole(u.email, "admin")}
+                            >
+                              <Shield className="w-3.5 h-3.5 mr-2 text-primary" />
+                              Make Admin
+                            </DropdownMenuItem>
+                          ) : (
+                            <DropdownMenuItem
+                              data-ocid={`admin.row.remove_admin.${idx + 1}`}
+                              className="cursor-pointer"
+                              onClick={() => handleSetRole(u.email, "user")}
+                            >
+                              <User className="w-3.5 h-3.5 mr-2" />
+                              Remove Admin
+                            </DropdownMenuItem>
+                          )}
 
-                        <DropdownMenuSeparator className="bg-border/40" />
+                          <DropdownMenuSeparator className="bg-border/40" />
 
-                        {/* Delete */}
-                        <DropdownMenuItem
-                          data-ocid={`admin.row.delete_button.${idx + 1}`}
-                          className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
-                          onClick={() => setDeleteTarget(u.email)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 mr-2" />
-                          Delete User
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                </TableRow>
-              ))}
+                          {/* Reset usage */}
+                          <DropdownMenuItem
+                            data-ocid={`admin.row.reset_usage.${idx + 1}`}
+                            className="cursor-pointer"
+                            onClick={() => handleResetUsage(u.email)}
+                          >
+                            <RefreshCw className="w-3.5 h-3.5 mr-2" />
+                            Reset Usage
+                          </DropdownMenuItem>
+
+                          <DropdownMenuSeparator className="bg-border/40" />
+
+                          {/* Delete */}
+                          <DropdownMenuItem
+                            data-ocid={`admin.row.delete_button.${idx + 1}`}
+                            className="text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
+                            onClick={() => setDeleteTarget(u.email)}
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-2" />
+                            Delete User
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         )}

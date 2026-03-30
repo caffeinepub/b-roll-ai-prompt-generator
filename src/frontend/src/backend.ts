@@ -117,10 +117,12 @@ export interface UserPublic {
     id: string;
     email: string;
     createdAt: bigint;
-    subscriptionStatus: string;
+    plan: string;
     requestsToday: bigint;
     lastRequestDate: bigint;
     role: string;
+    stripeCustomerId: string;
+    stripeSubscriptionId: string;
 }
 export type AuthResult = { ok: string } | { err: string };
 export type PromptResult = { ok: string } | { err: string };
@@ -140,10 +142,12 @@ export interface backendInterface {
     logout(sessionToken: string): Promise<void>;
     getCurrentUser(sessionToken: string): Promise<[] | [UserPublic]>;
     getAllUsers(sessionToken: string): Promise<Array<UserPublic>>;
+    adminSetPlan(sessionToken: string, email: string, plan: string): Promise<boolean>;
     adminSetSubscription(sessionToken: string, email: string, status: string): Promise<boolean>;
     adminSetRole(sessionToken: string, email: string, role: string): Promise<boolean>;
     adminResetUsage(sessionToken: string, email: string): Promise<boolean>;
     adminDeleteUser(sessionToken: string, email: string): Promise<boolean>;
+    setUserPlan(sessionToken: string, plan: string): Promise<boolean>;
     _initializeAccessControlWithSecret(secret: string): Promise<void>;
 }
 export class Backend implements backendInterface {
@@ -348,6 +352,19 @@ export class Backend implements backendInterface {
             return await this.actor.getAllUsers(sessionToken);
         }
     }
+    async adminSetPlan(sessionToken: string, email: string, plan: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.adminSetPlan(sessionToken, email, plan);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            return await this.actor.adminSetPlan(sessionToken, email, plan);
+        }
+    }
     async adminSetSubscription(sessionToken: string, email: string, status: string): Promise<boolean> {
         if (this.processError) {
             try {
@@ -398,6 +415,19 @@ export class Backend implements backendInterface {
             }
         } else {
             return await this.actor.adminDeleteUser(sessionToken, email);
+        }
+    }
+    async setUserPlan(sessionToken: string, plan: string): Promise<boolean> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.setUserPlan(sessionToken, plan);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            return await this.actor.setUserPlan(sessionToken, plan);
         }
     }
     async _initializeAccessControlWithSecret(secret: string): Promise<void> {

@@ -172,3 +172,32 @@ export function useAdminDeleteUser(sessionToken: string | null) {
       queryClient.invalidateQueries({ queryKey: ["adminUsers"] }),
   });
 }
+
+// Self-service plan change
+export function useSetUserPlan(sessionToken: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (plan: string) => {
+      if (!sessionToken) throw new Error("No session");
+      const actor = await getBackend();
+      return actor.setUserPlan(sessionToken, plan);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] });
+    },
+  });
+}
+
+// Admin plan setter
+export function useAdminSetPlan(sessionToken: string | null) {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ email, plan }: { email: string; plan: string }) => {
+      if (!sessionToken) throw new Error("No session");
+      const actor = await getBackend();
+      return actor.adminSetPlan(sessionToken, email, plan);
+    },
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["adminUsers"] }),
+  });
+}

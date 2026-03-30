@@ -1,36 +1,26 @@
 # B-Roll AI Prompt Generator
 
 ## Current State
-Authentication (signup/login/logout), session management, and usage tracking are fully implemented. Users have `subscriptionStatus`, `requestsToday`, and `lastRequestDate`. Free users are capped at 5 requests/day with automatic daily reset. Demo user (demo@demo.dm / demo1234) is seeded. No admin role or admin dashboard exists.
+- Four subscription plans: Free (5/day), Starter ($7/30/day), Pro ($17/80/day, batch 3), Elite ($27/150/day, batch 5)
+- Backend enforces daily limits via `getDailyLimit()` with `FREE_DAILY_LIMIT = 5`
+- Frontend `PLAN_LIMITS` constant in `PricingPage.tsx` mirrors backend limits and drives batch UI in `GenerateForm.tsx`
+- Pricing page displays plan cards with current plan label and upgrade/downgrade buttons
 
 ## Requested Changes (Diff)
 
 ### Add
-- `userRoles` Map in backend (email -> "user" | "admin")
-- `userEmailList` List in backend for iterating all registered users
-- `role` field to `UserPublic` type
-- Admin user seed: `medes608@gmail.com`, password `Admin@1234`, role `admin`, subscription `paid`
-- Backend admin query: `getAllUsers(sessionToken)` -> `[UserPublic]` (admin-gated)
-- Backend admin updates: `adminSetSubscription`, `adminSetRole`, `adminResetUsage`, `adminDeleteUser` (all Bool-returning, admin-gated)
-- `AdminDashboard` React component: user table with search, plan/role badges, action buttons per user
-- Admin nav link visible only to users with `role === "admin"`
+- Nothing new to add
 
 ### Modify
-- `signUp` to push email to `userEmailList`
-- `getCurrentUser` to return `role` field via shared `buildUserPublic` helper
-- `UserPublic` Motoko type to include `role : Text`
-- `backend.did.d.ts` / `backend.did.js`: add `role` to `UserPublic` IDL, add admin service methods
-- `backend.d.ts` / `backend.ts`: add `role` to `UserPublic`, add admin methods to interface and class
-- `useAuth.ts`: add `role` to `AuthUser` type
-- `App.tsx`: add admin tab in nav (admin-only), render `AdminDashboard` when active
+- Backend `FREE_DAILY_LIMIT`: 5 → 3
+- Backend `getDailyLimit`: starter 30→25, pro 80→100, elite 150→300
+- Frontend `PLAN_LIMITS`: free 5→3, starter 30→25, pro maxBatch 3→5, elite dailyLimit 150→300 and maxBatch 5→10
+- Pricing page PLANS data: update displayed request counts, ELITE price $27→$37, batch counts updated (pro: up to 5, elite: up to 10)
 
 ### Remove
-- Nothing
+- Nothing to remove
 
 ## Implementation Plan
-1. Update `main.mo` with new types, role helpers, seed data, and admin functions
-2. Update `declarations/backend.did.d.ts` and `backend.did.js` with new types and service methods
-3. Update `backend.d.ts` and `backend.ts` with new interface and Backend class methods
-4. Update `useAuth.ts` to expose `role`
-5. Create `AdminDashboard.tsx` with user table, search, and per-user action controls
-6. Update `App.tsx` navigation and tab rendering for admin route
+1. Update `FREE_DAILY_LIMIT` and `getDailyLimit()` in `src/backend/main.mo`
+2. Update `PLAN_LIMITS` object in `src/frontend/src/components/PricingPage.tsx`
+3. Update `PLANS` array in `PricingPage.tsx`: request counts, elite price ($37), batch descriptions

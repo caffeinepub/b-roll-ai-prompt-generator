@@ -11,13 +11,14 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, Zap } from "lucide-react";
+import { ChevronDown, Layers, Zap } from "lucide-react";
 import { motion } from "motion/react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import type { FormData } from "../App";
 import { useAuth } from "../hooks/useAuth";
 import { useMakePromptRequestWithSession } from "../hooks/useQueries";
+import { PLAN_LIMITS, type PlanKey } from "./PricingPage";
 
 const SCENE_DATA: Record<string, string[]> = {
   "Café / Work": [
@@ -147,9 +148,21 @@ export default function GenerateForm({
   setIsGenerating,
   sessionToken,
 }: Props) {
-  const { refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { mutateAsync: makeRequest } = useMakePromptRequestWithSession();
   const formRef = useRef<HTMLDivElement>(null);
+
+  // Derive plan-based batch limits
+  const plan = (user?.plan ?? "free") as PlanKey;
+  const batchEnabled = PLAN_LIMITS[plan]?.batchEnabled ?? false;
+  const maxVariations = PLAN_LIMITS[plan]?.maxBatch ?? 1;
+
+  // Clamp numVariations when plan changes
+  useEffect(() => {
+    if (formData.numVariations > maxVariations) {
+      setFormData((prev) => ({ ...prev, numVariations: maxVariations }));
+    }
+  }, [maxVariations, formData.numVariations, setFormData]);
 
   const update = <K extends keyof FormData>(key: K, value: FormData[K]) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -523,20 +536,44 @@ Return ONLY a numbered list of prompts.`;
             <span className="text-primary font-bold normal-case">
               {formData.numVariations}
             </span>
+            {batchEnabled && (
+              <span className="ml-1 normal-case font-normal text-muted-foreground/60">
+                (max: {maxVariations})
+              </span>
+            )}
           </SectionLabel>
-          <Slider
-            data-ocid="form.variations.input"
-            min={1}
-            max={10}
-            step={1}
-            value={[formData.numVariations]}
-            onValueChange={([v]) => update("numVariations", v)}
-            className="mt-2"
-          />
-          <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
-            <span>1</span>
-            <span>10</span>
-          </div>
+
+          {batchEnabled ? (
+            <>
+              <Slider
+                data-ocid="form.variations.input"
+                min={1}
+                max={maxVariations}
+                step={1}
+                value={[formData.numVariations]}
+                onValueChange={([v]) => update("numVariations", v)}
+                className="mt-2"
+              />
+              <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+                <span>1</span>
+                <span>{maxVariations}</span>
+              </div>
+            </>
+          ) : (
+            <div
+              data-ocid="form.batch_locked.panel"
+              className="flex items-start gap-2.5 text-xs text-muted-foreground bg-muted/20 border border-border/40 rounded-lg px-3 py-2.5 mt-1"
+            >
+              <Layers className="w-3.5 h-3.5 text-primary/60 flex-shrink-0 mt-0.5" />
+              <span>
+                Batch generation requires{" "}
+                <span className="text-primary font-semibold">Pro</span> or
+                higher. Go to the{" "}
+                <span className="text-primary font-medium">Pricing</span> tab to
+                upgrade.
+              </span>
+            </div>
+          )}
         </div>
 
         <Divider />

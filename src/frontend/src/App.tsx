@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Toaster } from "@/components/ui/sonner";
 import {
+  CreditCard,
   Eye,
   EyeOff,
   Film,
@@ -27,6 +28,10 @@ import AdminDashboard from "./components/AdminDashboard";
 import AuthScreen from "./components/AuthScreen";
 import GenerateForm from "./components/GenerateForm";
 import HistorySection from "./components/HistorySection";
+import PricingPage, {
+  PLAN_LIMITS,
+  type PlanKey,
+} from "./components/PricingPage";
 import ResultsPanel from "./components/ResultsPanel";
 import { useAuth } from "./hooks/useAuth";
 import {
@@ -66,11 +71,25 @@ const DEFAULT_FORM: FormData = {
   faceless: false,
 };
 
+const PLAN_LABEL: Record<string, string> = {
+  free: "FREE",
+  starter: "STARTER",
+  pro: "PRO",
+  elite: "ELITE",
+};
+
+const PLAN_BADGE_CLASS: Record<string, string> = {
+  free: "bg-muted/60 text-muted-foreground border-border/40",
+  starter: "bg-blue-500/10 text-blue-400 border-blue-500/20",
+  pro: "bg-emerald-500/15 text-emerald-400 border-emerald-500/25",
+  elite: "bg-amber-500/10 text-amber-400 border-amber-500/20",
+};
+
 function MainApp() {
-  const { user, logout, sessionToken } = useAuth();
-  const [activeTab, setActiveTab] = useState<"dashboard" | "history" | "admin">(
-    "dashboard",
-  );
+  const { user, logout, sessionToken, refreshUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<
+    "dashboard" | "history" | "admin" | "pricing"
+  >("dashboard");
   const [formData, setFormData] = useState<FormData>(DEFAULT_FORM);
   const [variations, setVariations] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -113,6 +132,12 @@ function MainApp() {
       toast.error("Sign out failed.");
     }
   };
+
+  const planKey = (user?.plan ?? "free") as PlanKey;
+  const planLimit = PLAN_LIMITS[planKey]?.dailyLimit ?? 3;
+  const planLabel = PLAN_LABEL[user?.plan ?? "free"] ?? "FREE";
+  const planBadgeClass =
+    PLAN_BADGE_CLASS[user?.plan ?? "free"] ?? PLAN_BADGE_CLASS.free;
 
   return (
     <div className="min-h-screen bg-background font-jakarta relative overflow-x-hidden">
@@ -166,6 +191,19 @@ function MainApp() {
               <History className="w-3.5 h-3.5" />
               History
             </button>
+            <button
+              type="button"
+              data-ocid="nav.pricing.link"
+              onClick={() => setActiveTab("pricing")}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                activeTab === "pricing"
+                  ? "text-foreground bg-muted/60"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+              }`}
+            >
+              <CreditCard className="w-3.5 h-3.5" />
+              Pricing
+            </button>
             {user?.role === "admin" && (
               <button
                 type="button"
@@ -198,18 +236,41 @@ function MainApp() {
               API Key
             </Button>
 
-            {/* User info + sign out */}
+            {/* User info + plan + usage + sign out */}
             {user && (
               <div className="flex items-center gap-2">
-                {/* Usage badge for free users */}
-                {user.subscriptionStatus === "free" && (
-                  <span
-                    data-ocid="nav.usage.panel"
-                    className="text-xs text-muted-foreground hidden sm:block px-2 py-0.5 rounded-full bg-muted/40 border border-border/40"
+                {/* Plan badge */}
+                <span
+                  data-ocid="nav.plan.panel"
+                  className={`text-[10px] font-bold hidden sm:inline-flex items-center px-2 py-0.5 rounded-full border ${
+                    planBadgeClass
+                  }`}
+                >
+                  {planLabel}
+                </span>
+
+                {/* Usage badge — shown for all users */}
+                <span
+                  data-ocid="nav.usage.panel"
+                  className="text-xs text-muted-foreground hidden sm:block px-2 py-0.5 rounded-full bg-muted/40 border border-border/40"
+                >
+                  {Number(user.requestsToday)}/{planLimit} today
+                </span>
+
+                {/* Upgrade button for non-elite users */}
+                {user.plan !== "elite" && (
+                  <Button
+                    data-ocid="nav.upgrade.button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setActiveTab("pricing")}
+                    className="border-primary/40 bg-primary/10 text-primary hover:bg-primary/20 hover:border-primary/60 text-xs h-8 gap-1.5 hidden sm:flex"
                   >
-                    {Number(user.requestsToday)}/5 today
-                  </span>
+                    <Sparkles className="w-3 h-3" />
+                    Upgrade
+                  </Button>
                 )}
+
                 <span className="text-xs text-muted-foreground hidden sm:block max-w-[140px] truncate">
                   {user.email}
                 </span>
@@ -224,16 +285,6 @@ function MainApp() {
                   Sign Out
                 </Button>
               </div>
-            )}
-
-            {!user && (
-              <Button
-                size="sm"
-                className="h-8 px-4 text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground shadow-purple-sm"
-              >
-                <Sparkles className="w-3 h-3 mr-1" />
-                Upgrade
-              </Button>
             )}
           </div>
         </div>
@@ -311,6 +362,22 @@ function MainApp() {
                 </p>
               </div>
               <HistorySection showAll />
+            </motion.div>
+          ) : activeTab === "pricing" ? (
+            <motion.div
+              key="pricing"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
+            >
+              <PricingPage
+                sessionToken={sessionToken}
+                currentPlan={user?.plan ?? "free"}
+                onPlanChange={() => {
+                  refreshUser();
+                }}
+              />
             </motion.div>
           ) : (
             <motion.div

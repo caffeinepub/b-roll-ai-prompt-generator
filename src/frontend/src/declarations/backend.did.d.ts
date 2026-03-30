@@ -29,10 +29,12 @@ export interface UserPublic {
   'id' : string,
   'email' : string,
   'createdAt' : bigint,
-  'subscriptionStatus' : string,
+  'plan' : string,
   'requestsToday' : bigint,
   'lastRequestDate' : bigint,
   'role' : string,
+  'stripeCustomerId' : string,
+  'stripeSubscriptionId' : string,
 }
 export type AuthResult = { 'ok' : string } | { 'err' : string };
 export type PromptResult = { 'ok' : string } | { 'err' : string };
@@ -52,10 +54,12 @@ export interface _SERVICE {
   'logout' : ActorMethod<[string], undefined>,
   'getCurrentUser' : ActorMethod<[string], [] | [UserPublic]>,
   'getAllUsers' : ActorMethod<[string], Array<UserPublic>>,
+  'adminSetPlan' : ActorMethod<[string, string, string], boolean>,
   'adminSetSubscription' : ActorMethod<[string, string, string], boolean>,
   'adminSetRole' : ActorMethod<[string, string, string], boolean>,
   'adminResetUsage' : ActorMethod<[string, string], boolean>,
   'adminDeleteUser' : ActorMethod<[string, string], boolean>,
+  'setUserPlan' : ActorMethod<[string, string], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

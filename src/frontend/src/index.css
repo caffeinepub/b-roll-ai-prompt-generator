@@ -1,0 +1,87 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: "Plus Jakarta Sans";
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: swap;
+  src: url("/assets/fonts/PlusJakartaSans.woff2") format("woff2");
+}
+
+@layer base {
+  :root {
+    --radius: 0.75rem;
+    --background: 0.1 0.03 261;
+    --foreground: 0.92 0.005 261;
+    --card: 0.15 0.025 261;
+    --card-foreground: 0.92 0.005 261;
+    --popover: 0.13 0.03 261;
+    --popover-foreground: 0.92 0.005 261;
+    --primary: 0.54 0.22 281;
+    --primary-foreground: 0.98 0 0;
+    --secondary: 0.22 0.04 261;
+    --secondary-foreground: 0.92 0.005 261;
+    --muted: 0.19 0.03 261;
+    --muted-foreground: 0.55 0.01 261;
+    --accent: 0.54 0.22 281;
+    --accent-foreground: 0.98 0 0;
+    --destructive: 0.577 0.245 27.325;
+    --destructive-foreground: 0.985 0 0;
+    --border: 0.27 0.04 261;
+    --input: 0.19 0.03 261;
+    --ring: 0.54 0.22 281;
+    --nav-bg: 0.09 0.03 261;
+    --surface: 0.17 0.03 261;
+    --purple-glow: 0.54 0.22 281;
+    --chip-bg: 0.19 0.025 261;
+    --chip-border: 0.29 0.05 261;
+    --divider: 0.22 0.04 261;
+    --text-secondary: 0.68 0.01 261;
+    --chart-1: 0.54 0.22 281;
+    --chart-2: 0.6 0.118 184.704;
+    --chart-3: 0.769 0.188 70.08;
+    --chart-4: 0.627 0.265 303.9;
+    --chart-5: 0.645 0.246 16.439;
+    --sidebar: 0.09 0.03 261;
+    --sidebar-foreground: 0.92 0.005 261;
+    --sidebar-primary: 0.54 0.22 281;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.22 0.04 261;
+    --sidebar-accent-foreground: 0.92 0.005 261;
+    --sidebar-border: 0.27 0.04 261;
+    --sidebar-ring: 0.54 0.22 281;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "Plus Jakarta Sans", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: oklch(var(--border)) transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background: oklch(var(--border));
+    border-radius: 3px;
+  }
+}

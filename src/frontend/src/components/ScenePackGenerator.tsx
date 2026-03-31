@@ -370,7 +370,7 @@ Each scene must:
 
 OUTPUT FORMAT (STRICT):
 
----SCENE {n}---
+---SCENE{n}---
 LABEL: {label}
 DESCRIPTION: {short engaging line}
 PROMPT: {detailed prompt}
@@ -481,7 +481,7 @@ function parseScenes(raw: string): SceneResult[] {
   }
 
   const blocks = content
-    .split(/---SCENE \d+---/)
+    .split(/---SCENE\d+---/)
     .filter((b: string) => b.trim());
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];

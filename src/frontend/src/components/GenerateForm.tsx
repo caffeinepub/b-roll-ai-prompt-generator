@@ -166,6 +166,7 @@ interface Props {
   isGenerating: boolean;
   setIsGenerating: (v: boolean) => void;
   sessionToken: string | null;
+  onCorePromptChange?: (prompt: string) => void;
 }
 
 function SectionLabel({ children }: { children: React.ReactNode }) {
@@ -187,6 +188,7 @@ export default function GenerateForm({
   isGenerating,
   setIsGenerating,
   sessionToken,
+  onCorePromptChange,
 }: Props) {
   const { user, refreshUser } = useAuth();
   const { mutateAsync: makeRequest } = useMakePromptRequestWithSession();
@@ -330,6 +332,7 @@ For each prompt, return this EXACT format:
           break;
       }
 
+      onCorePromptChange?.(promptContent);
       const result = await makeRequest({ sessionToken, promptContent });
       const parsed = parseVariations(result, numVariations);
       onGenerate(parsed);

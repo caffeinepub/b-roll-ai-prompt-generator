@@ -5,6 +5,7 @@ import {
   Download,
   Image as ImageIcon,
   Sparkles,
+  Terminal,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
@@ -15,6 +16,8 @@ interface Props {
   isGenerating: boolean;
   referenceDescription: string;
   hasGenerated: boolean;
+  debugMode?: boolean;
+  corePrompt?: string;
 }
 
 interface StructuredPrompt {
@@ -42,6 +45,8 @@ export default function ResultsPanel({
   isGenerating,
   referenceDescription,
   hasGenerated,
+  debugMode = false,
+  corePrompt = "",
 }: Props) {
   const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
   const [copiedAll, setCopiedAll] = useState(false);
@@ -145,6 +150,55 @@ export default function ResultsPanel({
               }}
             />
           </motion.div>
+        )}
+
+        {/* Debug Panel */}
+        {debugMode && corePrompt && (
+          <div className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 overflow-hidden">
+            <div className="h-0.5 bg-gradient-to-r from-amber-500/60 via-amber-400/30 to-transparent" />
+            <div className="p-3">
+              <div className="flex items-center justify-between gap-3 mb-2">
+                <div className="flex items-center gap-2">
+                  <Terminal className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="text-xs font-semibold text-amber-400">
+                    🧪 Debug: Request JSON Sent to API
+                  </span>
+                  <span className="text-[10px] border border-amber-500/40 text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded-full">
+                    Admin Only
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  data-ocid="debug.copy_button"
+                  onClick={() => {
+                    const debugJson = JSON.stringify(
+                      {
+                        model: "gpt-4o",
+                        messages: [{ role: "user", content: corePrompt }],
+                      },
+                      null,
+                      2,
+                    );
+                    navigator.clipboard.writeText(debugJson);
+                  }}
+                  className="flex items-center gap-1 text-[10px] text-amber-400 border border-amber-500/30 rounded px-2 py-1 hover:bg-amber-500/10 transition-colors"
+                >
+                  <Copy className="w-3 h-3" />
+                  Copy JSON
+                </button>
+              </div>
+              <pre className="whitespace-pre-wrap font-mono text-[11px] text-muted-foreground leading-relaxed bg-muted/20 border border-border/60 rounded-md p-3 overflow-x-auto max-h-64 overflow-y-auto">
+                {JSON.stringify(
+                  {
+                    model: "gpt-4o",
+                    messages: [{ role: "user", content: corePrompt }],
+                  },
+                  null,
+                  2,
+                )}
+              </pre>
+            </div>
+          </div>
         )}
 
         {/* Loading / empty / results */}

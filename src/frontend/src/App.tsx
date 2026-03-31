@@ -9,6 +9,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Toaster } from "@/components/ui/sonner";
 import {
+  Clapperboard,
   CreditCard,
   Eye,
   EyeOff,
@@ -33,6 +34,7 @@ import PricingPage, {
   type PlanKey,
 } from "./components/PricingPage";
 import ResultsPanel from "./components/ResultsPanel";
+import ScenePackGenerator from "./components/ScenePackGenerator";
 import { useAuth } from "./hooks/useAuth";
 import {
   useAdminSetSystemApiKey,
@@ -89,11 +91,15 @@ const PLAN_BADGE_CLASS: Record<string, string> = {
   elite: "bg-amber-500/10 text-amber-400 border-amber-500/20",
 };
 
+type GeneratorMode = "scene-pack" | "single";
+
 function MainApp() {
   const { user, logout, sessionToken, refreshUser } = useAuth();
   const [activeTab, setActiveTab] = useState<
     "dashboard" | "history" | "admin" | "pricing"
   >("dashboard");
+  const [generatorMode, setGeneratorMode] =
+    useState<GeneratorMode>("scene-pack");
   const [formData, setFormData] = useState<FormData>(DEFAULT_FORM);
   const [variations, setVariations] = useState<string[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -101,6 +107,8 @@ function MainApp() {
   const [showApiModal, setShowApiModal] = useState(false);
   const [apiKeyInput, setApiKeyInput] = useState("");
   const [showKey, setShowKey] = useState(false);
+  const [debugMode, setDebugMode] = useState(false);
+  const [singleCorePrompt, setSingleCorePrompt] = useState("");
 
   const { data: apiKeyRegistered, isLoading: checkingKey } =
     useIsSystemApiKeySet();
@@ -129,6 +137,8 @@ function MainApp() {
   };
 
   const handleLogout = async () => {
+    setDebugMode(false);
+    setSingleCorePrompt("");
     try {
       await logout();
       toast.success("Signed out successfully.");
@@ -230,16 +240,38 @@ function MainApp() {
           {/* Right actions */}
           <div className="flex items-center gap-2">
             {user?.role === "admin" && (
-              <Button
-                data-ocid="nav.api_key.button"
-                variant="outline"
-                size="sm"
-                onClick={() => setShowApiModal(true)}
-                className="border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 text-xs h-8 gap-1.5"
-              >
-                <Key className="w-3 h-3" />
-                API Key
-              </Button>
+              <>
+                <Button
+                  data-ocid="nav.api_key.button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowApiModal(true)}
+                  className="border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 text-xs h-8 gap-1.5"
+                >
+                  <Key className="w-3 h-3" />
+                  API Key
+                </Button>
+                <Button
+                  data-ocid="nav.debug_mode.toggle"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDebugMode((v) => !v)}
+                  className={
+                    debugMode
+                      ? "border-amber-500/40 bg-amber-500/20 text-amber-400 hover:bg-amber-500/30 text-xs h-8 gap-1.5"
+                      : "border-border/60 bg-muted/30 text-muted-foreground hover:text-foreground hover:bg-muted/60 text-xs h-8 gap-1.5"
+                  }
+                >
+                  <span
+                    className={
+                      debugMode
+                        ? "w-2 h-2 rounded-full bg-amber-400 inline-block"
+                        : "w-2 h-2 rounded-full bg-muted-foreground/40 inline-block"
+                    }
+                  />
+                  Debug {debugMode ? "ON" : "OFF"}
+                </Button>
+              </>
             )}
 
             {/* User info + plan + usage + sign out */}
@@ -255,7 +287,7 @@ function MainApp() {
                   {planLabel}
                 </span>
 
-                {/* Usage badge — shown for all users */}
+                {/* Usage badge */}
                 <span
                   data-ocid="nav.usage.panel"
                   className="text-xs text-muted-foreground hidden sm:block px-2 py-0.5 rounded-full bg-muted/40 border border-border/40"
@@ -295,8 +327,6 @@ function MainApp() {
           </div>
         </div>
       </header>
-
-      {/* Main content */}
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <AnimatePresence mode="wait">
           {activeTab === "dashboard" ? (
@@ -308,7 +338,7 @@ function MainApp() {
               transition={{ duration: 0.3 }}
             >
               {/* Hero heading */}
-              <div className="mb-8">
+              <div className="mb-6">
                 <h1 className="text-3xl sm:text-4xl font-extrabold uppercase tracking-tight text-foreground leading-tight">
                   Generate AI Prompts
                 </h1>
@@ -318,38 +348,112 @@ function MainApp() {
                 </p>
               </div>
 
-              {/* Two-col layout */}
-              <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-6">
-                <GenerateForm
-                  formData={formData}
-                  setFormData={setFormData}
-                  onGenerate={(vars) => {
-                    setVariations(vars);
-                    setHasGenerated(true);
-                  }}
-                  isGenerating={isGenerating}
-                  setIsGenerating={setIsGenerating}
-                  sessionToken={sessionToken}
-                />
-                <ResultsPanel
-                  variations={variations}
-                  isGenerating={isGenerating}
-                  referenceDescription={formData.referenceDescription}
-                  hasGenerated={hasGenerated}
-                />
+              {/* Mode selector */}
+              <div
+                className="flex flex-col sm:flex-row gap-2 mb-6"
+                data-ocid="generator.mode.panel"
+              >
+                <button
+                  type="button"
+                  data-ocid="generator.scene-pack.tab"
+                  onClick={() => setGeneratorMode("scene-pack")}
+                  className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                    generatorMode === "scene-pack"
+                      ? "bg-primary/15 border-primary/50 text-primary shadow-purple-sm"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted/30 hover:border-border/80"
+                  }`}
+                >
+                  <Clapperboard className="w-4 h-4 flex-shrink-0" />
+                  <span>🎬 Scene Pack Generator</span>
+                  <span
+                    className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      generatorMode === "scene-pack"
+                        ? "bg-primary/20 text-primary"
+                        : "bg-muted text-muted-foreground"
+                    }`}
+                  >
+                    RECOMMENDED
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  data-ocid="generator.single.tab"
+                  onClick={() => setGeneratorMode("single")}
+                  className={`flex items-center gap-2.5 px-4 py-3 rounded-xl border text-sm font-semibold transition-all ${
+                    generatorMode === "single"
+                      ? "bg-primary/15 border-primary/50 text-primary shadow-purple-sm"
+                      : "bg-card border-border text-muted-foreground hover:text-foreground hover:bg-muted/30 hover:border-border/80"
+                  }`}
+                >
+                  <Sparkles className="w-4 h-4 flex-shrink-0" />
+                  Single Scene Generator
+                </button>
               </div>
 
-              {/* History below */}
-              {hasGenerated && (
-                <motion.div
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2, duration: 0.4 }}
-                  className="mt-10"
-                >
-                  <HistorySection />
-                </motion.div>
-              )}
+              {/* Mode content */}
+              <AnimatePresence mode="wait">
+                {generatorMode === "scene-pack" ? (
+                  <motion.div
+                    key="scene-pack"
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <ScenePackGenerator
+                      sessionToken={sessionToken}
+                      userPlan={user?.plan ?? "free"}
+                      debugMode={debugMode}
+                      onUsageUpdate={refreshUser}
+                    />
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="single"
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {/* Two-col layout */}
+                    <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-6">
+                      <GenerateForm
+                        formData={formData}
+                        setFormData={setFormData}
+                        onGenerate={(vars) => {
+                          setVariations(vars);
+                          setHasGenerated(true);
+                        }}
+                        isGenerating={isGenerating}
+                        setIsGenerating={setIsGenerating}
+                        sessionToken={sessionToken}
+                        onCorePromptChange={setSingleCorePrompt}
+                      />
+                      <ResultsPanel
+                        variations={variations}
+                        isGenerating={isGenerating}
+                        debugMode={debugMode}
+                        corePrompt={singleCorePrompt}
+                        referenceDescription={formData.referenceDescription}
+                        hasGenerated={hasGenerated}
+                      />
+                    </div>
+
+                    {/* History below */}
+                    {hasGenerated && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.2, duration: 0.4 }}
+                        className="mt-10"
+                      >
+                        <HistorySection />
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </motion.div>
           ) : activeTab === "history" ? (
             <motion.div
@@ -398,8 +502,6 @@ function MainApp() {
           )}
         </AnimatePresence>
       </main>
-
-      {/* Footer */}
       <footer className="relative z-10 border-t border-divider py-5 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center text-xs text-muted-foreground">
           © {new Date().getFullYear()}. Built with ♥ using{" "}
@@ -413,8 +515,6 @@ function MainApp() {
           </a>
         </div>
       </footer>
-
-      {/* API Key Modal */}
       <Dialog open={showApiModal} onOpenChange={setShowApiModal}>
         <DialogContent
           data-ocid="apikey.dialog"

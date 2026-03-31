@@ -1,43 +1,33 @@
-# B-Roll AI Prompt Generator – Prompt Types & Feature Gating
+# B-Roll AI Prompt Generator
 
 ## Current State
-- Single prompt type: cinematic B-Roll image prompts
-- FormData includes: scene, camera, lighting, atmosphere, style, variations, faceless, etc.
-- GenerateForm.tsx builds a static prompt string and sends to OpenAI via makePromptRequestWithSession
-- ResultsPanel.tsx shows a numbered list of raw variation strings
-- Plan-based batch limits already in place via PLAN_LIMITS from PricingPage.tsx
-- Plans: free (3/day), starter (25/day), pro (100/day, batch 5), elite (300/day, batch 10)
+- Admin Debug Mode exists only in ScenePackGenerator — always visible for admins with no toggle, shown below results
+- GenerateForm (Single Scene Generator) has no debug mode at all
+- No global debug toggle button exists anywhere in the UI
+- isAdmin is not passed to GenerateForm or ResultsPanel
 
 ## Requested Changes (Diff)
 
 ### Add
-- `promptType` field to FormData (values: "broll" | "animation" | "avatar")
-- Prompt Type selector in GenerateForm UI with 3 options:
-  - "B-Roll Prompt" (all plans)
-  - "Animation Prompt" (starter+)
-  - "Talking Avatar Prompt" (pro+)
-- Lock icon (🔒) and disabled state on locked prompt types
-- Tooltip/click message: "Upgrade to unlock this feature" when locked option clicked
-- Plan badges: "Starter+" on Animation, "Pro Feature" on Talking Avatar
-- Prompt-type-specific OpenAI prompt content:
-  - B-Roll: scene description, camera angle, lighting, mood, environment details
-  - Animation: character action, body movement/timing, camera movement, environment interaction, style
-  - Talking Avatar: script (what avatar says), tone, facial expressions, head movement/gestures, camera framing, lighting/background
-- Structured output request: each result should include Title, Description, Prompt sections
-- ResultsPanel updated to render structured sections (Title / Description / Prompt) per variation if structured format detected; otherwise falls back to plain text
+- Global `debugMode` boolean state in App.tsx (admin-only)
+- Debug Mode toggle button in the top nav header (visible only to admins)
+- Debug JSON panel in both ScenePackGenerator and GenerateForm flows
+- The panel shows a JSON-like preview of the request (model, messages with content) WITHOUT api key or system-level fields
+- Panel appears as soon as generate is clicked (before/during loading), at the top of the output area
 
 ### Modify
-- GenerateForm.tsx: add prompt type selector at the top of the form, modify handleGenerate to build type-specific prompt string
-- ResultsPanel.tsx: parse and render Title/Description/Prompt sections within each result card
-- App.tsx FormData type and DEFAULT_FORM to include promptType
+- App.tsx: add `debugMode` state + toggle button in header nav; pass `debugMode` to ScenePackGenerator and GenerateForm
+- ScenePackGenerator: remove always-on debug logic, accept `debugMode` prop, show debug panel at top when debugMode is on
+- GenerateForm: accept `debugMode` + `isAdmin` props, capture `promptContent` as corePrompt before API call, pass to ResultsPanel
+- ResultsPanel: accept `debugMode` + `corePrompt` props, render debug panel at top when debugMode is on
 
 ### Remove
-- Nothing removed
+- Debug panel hardcoded to always show for admins in ScenePackGenerator (replace with prop-driven toggle)
 
 ## Implementation Plan
-1. Add `promptType: "broll" | "animation" | "avatar"` to FormData type and DEFAULT_FORM in App.tsx
-2. Add PROMPT_TYPE_CONFIG constant mapping prompt type to: label, planRequired, badge label, description
-3. Add PromptTypeSelector component in GenerateForm.tsx at top of form with lock states per plan
-4. Update handleGenerate to switch on promptType and build a type-specific, structured-output prompt
-5. Update ResultsPanel to detect and render Title/Description/Prompt structured sections per card
-6. Feature gating: free→broll only, starter→broll+animation, pro/elite→all three
+1. Add `debugMode` state and toggle button in App.tsx header (admin only)
+2. Pass `debugMode` and `isAdmin` down to ScenePackGenerator and GenerateForm
+3. Update ScenePackGenerator to use `debugMode` prop and show debug panel at top of results with JSON preview
+4. Update GenerateForm to capture `promptContent` as `corePrompt`, pass `debugMode` + `corePrompt` to ResultsPanel
+5. Update ResultsPanel to render debug panel at top when `debugMode && corePrompt`
+6. JSON preview format: `{ model, messages: [{ role: 'user', content: '...' }] }` — no api key, no system prompt

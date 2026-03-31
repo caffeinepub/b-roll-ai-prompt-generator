@@ -1,36 +1,43 @@
-# B-Roll AI Prompt Generator
+# B-Roll AI Prompt Generator – Prompt Types & Feature Gating
 
 ## Current State
-- Full-stack app with auth, subscription tiers, admin dashboard, per-user OpenAI API key storage.
-- Each user stores their own API key (`apiKeysByEmail` map) and must enter it on first load.
-- After logout, state is cleared but no forced page reload happens.
-- API Key button is visible to all users in the nav.
+- Single prompt type: cinematic B-Roll image prompts
+- FormData includes: scene, camera, lighting, atmosphere, style, variations, faceless, etc.
+- GenerateForm.tsx builds a static prompt string and sends to OpenAI via makePromptRequestWithSession
+- ResultsPanel.tsx shows a numbered list of raw variation strings
+- Plan-based batch limits already in place via PLAN_LIMITS from PricingPage.tsx
+- Plans: free (3/day), starter (25/day), pro (100/day, batch 5), elite (300/day, batch 10)
 
 ## Requested Changes (Diff)
 
 ### Add
-- `systemConfig` map in backend for system-wide settings.
-- `adminSetSystemApiKey(sessionToken, key)` - admin-only, stores single system-wide API key.
-- `adminGetSystemApiKey(sessionToken)` - admin-only, returns current key value.
-- `isSystemApiKeySet()` - public query, returns bool.
-- API key management section in AdminDashboard with show/hide and save.
-- Hooks: `useAdminSetSystemApiKey`, `useAdminGetSystemApiKey`, `useIsSystemApiKeySet`.
+- `promptType` field to FormData (values: "broll" | "animation" | "avatar")
+- Prompt Type selector in GenerateForm UI with 3 options:
+  - "B-Roll Prompt" (all plans)
+  - "Animation Prompt" (starter+)
+  - "Talking Avatar Prompt" (pro+)
+- Lock icon (🔒) and disabled state on locked prompt types
+- Tooltip/click message: "Upgrade to unlock this feature" when locked option clicked
+- Plan badges: "Starter+" on Animation, "Pro Feature" on Talking Avatar
+- Prompt-type-specific OpenAI prompt content:
+  - B-Roll: scene description, camera angle, lighting, mood, environment details
+  - Animation: character action, body movement/timing, camera movement, environment interaction, style
+  - Talking Avatar: script (what avatar says), tone, facial expressions, head movement/gestures, camera framing, lighting/background
+- Structured output request: each result should include Title, Description, Prompt sections
+- ResultsPanel updated to render structured sections (Title / Description / Prompt) per variation if structured format detected; otherwise falls back to plain text
 
 ### Modify
-- `makePromptRequestWithSession` - use system API key from `systemConfig` instead of per-user `apiKeysByEmail`.
-- `logout()` in `useAuth.ts` - add `window.location.reload()` after clearing state to ensure login page shows on refresh.
-- API Key button in `App.tsx` nav - restrict to admin users only.
-- API Key modal in `App.tsx` - change title/description to indicate it sets the system-wide key for all users.
-- Auto-show modal logic - only trigger for admins when system key is not set.
+- GenerateForm.tsx: add prompt type selector at the top of the form, modify handleGenerate to build type-specific prompt string
+- ResultsPanel.tsx: parse and render Title/Description/Prompt sections within each result card
+- App.tsx FormData type and DEFAULT_FORM to include promptType
 
 ### Remove
-- Per-user API key prompt shown to all users on login.
+- Nothing removed
 
 ## Implementation Plan
-1. Add `systemConfig` Map and three new backend functions.
-2. Update `makePromptRequestWithSession` to read from `systemConfig`.
-3. Update all binding files (did.d.ts, did.js, backend.d.ts, backend.ts) with new functions.
-4. Fix logout in `useAuth.ts` to call `window.location.reload()`.
-5. In `App.tsx`: restrict API Key nav button and modal to admin only; update modal copy.
-6. In `AdminDashboard.tsx`: add API key card at top with current key (masked), show/hide toggle, and save button.
-7. Add hooks in `useQueries.ts` for the three new backend functions.
+1. Add `promptType: "broll" | "animation" | "avatar"` to FormData type and DEFAULT_FORM in App.tsx
+2. Add PROMPT_TYPE_CONFIG constant mapping prompt type to: label, planRequired, badge label, description
+3. Add PromptTypeSelector component in GenerateForm.tsx at top of form with lock states per plan
+4. Update handleGenerate to switch on promptType and build a type-specific, structured-output prompt
+5. Update ResultsPanel to detect and render Title/Description/Prompt structured sections per card
+6. Feature gating: free→broll only, starter→broll+animation, pro/elite→all three

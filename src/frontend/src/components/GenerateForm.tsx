@@ -11,11 +11,11 @@ import {
 } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, Layers, Zap } from "lucide-react";
+import { ChevronDown, Layers, Lock, User, Video, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-import type { FormData } from "../App";
+import type { FormData, PromptType } from "../App";
 import { useAuth } from "../hooks/useAuth";
 import { useMakePromptRequestWithSession } from "../hooks/useQueries";
 import { PLAN_LIMITS, type PlanKey } from "./PricingPage";
@@ -119,6 +119,46 @@ const PRESETS: Record<string, { styles: string[]; lighting: string }> = {
   },
 };
 
+const PLAN_ORDER = ["free", "starter", "pro", "elite"];
+
+function canUsePlan(userPlan: string, requiredPlan: string): boolean {
+  return PLAN_ORDER.indexOf(userPlan) >= PLAN_ORDER.indexOf(requiredPlan);
+}
+
+const PROMPT_TYPE_CONFIG: {
+  id: PromptType;
+  label: string;
+  description: string;
+  minPlan: string;
+  badge: string | null;
+  icon: React.ReactNode;
+}[] = [
+  {
+    id: "broll",
+    label: "B-Roll Prompt",
+    description: "Cinematic background footage scenes",
+    minPlan: "free",
+    badge: null,
+    icon: <Video className="w-4 h-4" />,
+  },
+  {
+    id: "animation",
+    label: "Animation Prompt",
+    description: "Motion & action for image-to-video",
+    minPlan: "starter",
+    badge: "Starter+",
+    icon: <Zap className="w-4 h-4" />,
+  },
+  {
+    id: "avatar",
+    label: "Talking Avatar",
+    description: "Avatar video with script & expressions",
+    minPlan: "pro",
+    badge: "Pro Feature",
+    icon: <User className="w-4 h-4" />,
+  },
+];
+
 interface Props {
   formData: FormData;
   setFormData: React.Dispatch<React.SetStateAction<FormData>>;
@@ -188,6 +228,17 @@ export default function GenerateForm({
     }
   };
 
+  const handleSelectPromptType = (typeId: PromptType) => {
+    const config = PROMPT_TYPE_CONFIG.find((c) => c.id === typeId);
+    if (!config) return;
+    const userPlan = user?.plan ?? "free";
+    if (!canUsePlan(userPlan, config.minPlan)) {
+      toast.error("Upgrade to unlock this feature");
+      return;
+    }
+    update("promptType", typeId);
+  };
+
   const handleGenerate = async () => {
     if (!sessionToken) {
       toast.error("Please sign in to generate prompts.");
@@ -196,31 +247,91 @@ export default function GenerateForm({
 
     setIsGenerating(true);
     try {
-      const facelessInstruction = formData.faceless
+      const {
+        numVariations,
+        scene,
+        sceneCategory,
+        referenceDescription,
+        gender,
+        outfit,
+        hair,
+        subjectMood,
+        cameraAngle,
+        lighting,
+        atmosphere,
+        styleFilters,
+        faceless,
+        promptType,
+      } = formData;
+
+      const facelessInstruction = faceless
         ? "Keep the subject faceless, do not show the face"
         : "Subject may show face";
 
-      const promptContent = `Generate ${formData.numVariations} cinematic, high-quality AI image prompts.
+      let promptContent: string;
 
-Scene: ${formData.scene}
-Category: ${formData.sceneCategory}
-Reference: ${formData.referenceDescription || "none"}
-Subject: ${formData.gender}, wearing ${formData.outfit}, ${formData.hair}, mood: ${formData.subjectMood}
-Camera: ${formData.cameraAngle}
-Lighting: ${formData.lighting}
-Mood: ${formData.atmosphere}
-Style: ${formData.styleFilters.join(", ")}
+      switch (promptType) {
+        case "animation":
+          promptContent = `Generate ${numVariations} animation prompt(s) for an image-to-video AI tool.
 
-Instructions:
-- Keep subject consistent
-- Make each variation slightly different (angle, lighting, composition)
-- Focus on realism and aesthetic details
-- ${facelessInstruction}
+Subject: ${gender}, ${outfit}, ${hair}
+Character Mood: ${subjectMood}
+Scene: ${scene}
+${facelessInstruction}
 
-Return ONLY a numbered list of prompts.`;
+For each prompt, return this EXACT format:
+
+### Prompt [N]
+**Title:** [short descriptive title]
+**Description:** [what this animation depicts]
+**Prompt:** [full prompt including: character action, body movement and timing, camera movement (pan/zoom/handheld), environment interaction, style (cinematic/vlog/slow motion)]
+
+---`;
+          break;
+
+        case "avatar":
+          promptContent = `Generate ${numVariations} talking avatar video prompt(s).
+
+Subject: ${gender}, ${outfit}, ${hair}
+Scene/Background: ${scene}
+Mood: ${subjectMood}
+${facelessInstruction}
+
+For each prompt, return this EXACT format:
+
+### Prompt [N]
+**Title:** [short descriptive title]
+**Description:** [brief description of the avatar video]
+**Prompt:** [full prompt including: script (what the avatar says), tone (friendly/confident/emotional), facial expressions, head movement and gestures, camera framing (close-up/medium shot), lighting and background]
+
+---`;
+          break;
+
+        default: // broll
+          promptContent = `Generate ${numVariations} cinematic B-Roll scene prompt(s) for background video footage.
+
+Scene: ${scene}
+Category: ${sceneCategory}
+Camera Angle: ${cameraAngle}
+Lighting: ${lighting}
+Mood: ${atmosphere}
+Style: ${styleFilters.join(", ")}
+Environment details: ${referenceDescription || "none"}
+${facelessInstruction}
+
+For each prompt, return this EXACT format:
+
+### Prompt [N]
+**Title:** [short descriptive title]
+**Description:** [2-3 sentence description of the scene]
+**Prompt:** [the full detailed cinematic prompt ready to use in an AI video tool]
+
+---`;
+          break;
+      }
 
       const result = await makeRequest({ sessionToken, promptContent });
-      const parsed = parseVariations(result, formData.numVariations);
+      const parsed = parseVariations(result, numVariations);
       onGenerate(parsed);
       await refreshUser();
     } catch (err) {
@@ -240,6 +351,8 @@ Return ONLY a numbered list of prompts.`;
   const isImageUrl = (s: string) =>
     s.trim().startsWith("http://") || s.trim().startsWith("https://");
 
+  const userPlan = user?.plan ?? "free";
+
   return (
     <div
       ref={formRef}
@@ -254,6 +367,79 @@ Return ONLY a numbered list of prompts.`;
       </div>
 
       <div className="px-6 py-5 flex-1 overflow-y-auto scrollbar-thin space-y-0">
+        {/* Prompt Type Selector */}
+        <div>
+          <SectionLabel>Prompt Type</SectionLabel>
+          <div className="grid grid-cols-3 gap-2">
+            {PROMPT_TYPE_CONFIG.map((config) => {
+              const locked = !canUsePlan(userPlan, config.minPlan);
+              const selected = formData.promptType === config.id;
+              return (
+                <button
+                  key={config.id}
+                  type="button"
+                  data-ocid={`form.prompt_type.${config.id}.button`}
+                  onClick={() => handleSelectPromptType(config.id)}
+                  className={`relative flex flex-col items-start gap-1.5 p-3 rounded-xl border text-left transition-all ${
+                    locked
+                      ? "opacity-50 cursor-not-allowed bg-muted/10 border-border/40"
+                      : selected
+                        ? "bg-primary/15 border-primary/60 shadow-[0_0_0_1px_oklch(0.54_0.22_281/0.3)]"
+                        : "bg-muted/10 border-border/40 hover:border-primary/40 hover:bg-primary/10 cursor-pointer"
+                  }`}
+                >
+                  {/* Icon row */}
+                  <div
+                    className={`${
+                      selected ? "text-primary" : "text-muted-foreground"
+                    }`}
+                  >
+                    {config.icon}
+                  </div>
+
+                  {/* Label */}
+                  <span
+                    className={`text-[11px] font-semibold leading-tight ${
+                      selected ? "text-primary" : "text-foreground"
+                    }`}
+                  >
+                    {config.label}
+                  </span>
+
+                  {/* Description */}
+                  <span className="text-[9px] text-muted-foreground leading-tight">
+                    {config.description}
+                  </span>
+
+                  {/* Lock icon overlay */}
+                  {locked && (
+                    <span className="absolute top-2 right-2 text-muted-foreground">
+                      <Lock className="w-3 h-3" />
+                    </span>
+                  )}
+
+                  {/* Plan badge */}
+                  {config.badge && (
+                    <span
+                      className={`mt-0.5 text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full border ${
+                        locked
+                          ? "bg-muted/30 text-muted-foreground border-border/30"
+                          : config.minPlan === "pro"
+                            ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
+                            : "bg-blue-500/10 text-blue-400 border-blue-500/20"
+                      }`}
+                    >
+                      {config.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <Divider />
+
         {/* Scene Category */}
         <div>
           <SectionLabel>Scene Category</SectionLabel>
@@ -628,12 +814,20 @@ Return ONLY a numbered list of prompts.`;
 }
 
 function parseVariations(text: string, expected: number): string[] {
+  // Try to split on structured prompt headers first
+  const structuredSplit = text.split(/(?=###\s*Prompt\s*\[?\d+\]?)/i);
+  if (structuredSplit.length > 1) {
+    return structuredSplit
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0)
+      .slice(0, expected);
+  }
+
   const lines = text.split("\n");
   const variations: string[] = [];
   let current = "";
 
   for (const line of lines) {
-    // Match both "Variation N:" and "N." formats
     const match =
       line.match(/^Variation\s*(\d+):\s*(.*)/i) ||
       line.match(/^(\d+)\.\s+(.*)/);

@@ -17,6 +17,26 @@ interface Props {
   hasGenerated: boolean;
 }
 
+interface StructuredPrompt {
+  title: string;
+  description: string;
+  prompt: string;
+}
+
+function parseStructuredPrompt(text: string): StructuredPrompt | null {
+  const titleMatch = text.match(/\*\*Title:\*\*\s*(.+?)(?=\n|$)/i);
+  const descMatch = text.match(
+    /\*\*Description:\*\*\s*([\s\S]+?)(?=\*\*Prompt:\*\*)/i,
+  );
+  const promptMatch = text.match(/\*\*Prompt:\*\*\s*([\s\S]+?)(?=---|$)/i);
+  if (!titleMatch || !descMatch || !promptMatch) return null;
+  return {
+    title: titleMatch[1].trim(),
+    description: descMatch[1].trim(),
+    prompt: promptMatch[1].trim(),
+  };
+}
+
 export default function ResultsPanel({
   variations,
   isGenerating,
@@ -30,9 +50,12 @@ export default function ResultsPanel({
     s.trim().startsWith("http://") || s.trim().startsWith("https://");
 
   const copyVariation = async (text: string, idx: number) => {
-    await navigator.clipboard.writeText(text);
+    // For structured prompts, copy only the Prompt field
+    const parsed = parseStructuredPrompt(text);
+    const toCopy = parsed ? parsed.prompt : text;
+    await navigator.clipboard.writeText(toCopy);
     setCopiedIndex(idx);
-    toast.success(`Variation ${idx + 1} copied!`);
+    toast.success(parsed ? "Prompt copied!" : `Variation ${idx + 1} copied!`);
     setTimeout(() => setCopiedIndex(null), 2000);
   };
 
@@ -167,8 +190,7 @@ export default function ResultsPanel({
                   No prompts yet
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Fill in the form and hit Generate to create your B-Roll
-                  prompts
+                  Fill in the form and hit Generate to create your prompts
                 </p>
               </div>
             </motion.div>
@@ -182,45 +204,168 @@ export default function ResultsPanel({
               exit={{ opacity: 0 }}
               className="space-y-4"
             >
-              {variations.map((variation, idx) => (
-                <motion.div
-                  key={variation.slice(0, 40)}
-                  data-ocid={`results.prompt.item.${idx + 1}`}
-                  initial={{ opacity: 0, y: 12 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: idx * 0.08, duration: 0.3 }}
-                  className="bg-surface border border-border rounded-2xl p-4 group hover:border-primary/40 transition-colors"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3 flex-1 min-w-0">
-                      <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
-                        {idx + 1}
-                      </span>
-                      <p className="text-sm text-foreground leading-relaxed">
-                        {variation}
-                      </p>
-                    </div>
-                    <Button
-                      data-ocid={`results.copy.button.${idx + 1}`}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => copyVariation(variation, idx)}
-                      className="flex-shrink-0 h-7 px-2.5 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/60 gap-1 opacity-0 group-hover:opacity-100 transition-all"
-                    >
-                      {copiedIndex === idx ? (
-                        <CopyCheck className="w-3 h-3" />
-                      ) : (
-                        <Copy className="w-3 h-3" />
-                      )}
-                      Copy
-                    </Button>
-                  </div>
-                </motion.div>
-              ))}
+              {variations.map((variation, idx) => {
+                const structured = parseStructuredPrompt(variation);
+                return structured ? (
+                  <StructuredVariationCard
+                    key={variation.slice(0, 40)}
+                    structured={structured}
+                    idx={idx}
+                    rawText={variation}
+                    copiedIndex={copiedIndex}
+                    onCopy={copyVariation}
+                  />
+                ) : (
+                  <PlainVariationCard
+                    key={variation.slice(0, 40)}
+                    variation={variation}
+                    idx={idx}
+                    copiedIndex={copiedIndex}
+                    onCopy={copyVariation}
+                  />
+                );
+              })}
             </motion.div>
           )}
         </AnimatePresence>
       </div>
     </div>
+  );
+}
+
+function StructuredVariationCard({
+  structured,
+  idx,
+  rawText,
+  copiedIndex,
+  onCopy,
+}: {
+  structured: StructuredPrompt;
+  idx: number;
+  rawText: string;
+  copiedIndex: number | null;
+  onCopy: (text: string, idx: number) => void;
+}) {
+  const [copiedFull, setCopiedFull] = useState(false);
+
+  const copyFull = async () => {
+    await navigator.clipboard.writeText(rawText);
+    setCopiedFull(true);
+    toast.success("Full output copied!");
+    setTimeout(() => setCopiedFull(false), 2000);
+  };
+
+  return (
+    <motion.div
+      data-ocid={`results.prompt.item.${idx + 1}`}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: idx * 0.08, duration: 0.3 }}
+      className="bg-surface border border-border rounded-2xl p-4 group hover:border-primary/40 transition-colors"
+    >
+      {/* Index badge + title row */}
+      <div className="flex items-start gap-3 mb-3">
+        <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
+          {idx + 1}
+        </span>
+        <p className="text-sm font-semibold text-foreground leading-tight pt-0.5">
+          {structured.title}
+        </p>
+      </div>
+
+      {/* Description */}
+      <p className="text-xs text-muted-foreground leading-relaxed mb-3 pl-9">
+        {structured.description}
+      </p>
+
+      {/* Prompt box */}
+      <div className="pl-9">
+        <p className="text-[9px] font-semibold uppercase tracking-widest text-primary/70 mb-1.5">
+          Prompt
+        </p>
+        <div className="bg-muted/20 border border-border/60 rounded-lg p-3">
+          <p className="text-sm text-foreground leading-relaxed">
+            {structured.prompt}
+          </p>
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2 mt-3 pl-9 opacity-0 group-hover:opacity-100 transition-all">
+        <Button
+          data-ocid={`results.copy.button.${idx + 1}`}
+          variant="outline"
+          size="sm"
+          onClick={() => onCopy(rawText, idx)}
+          className="h-7 px-2.5 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/60 gap-1"
+        >
+          {copiedIndex === idx ? (
+            <CopyCheck className="w-3 h-3" />
+          ) : (
+            <Copy className="w-3 h-3" />
+          )}
+          Copy Prompt
+        </Button>
+        <Button
+          data-ocid={`results.copy_full.button.${idx + 1}`}
+          variant="outline"
+          size="sm"
+          onClick={copyFull}
+          className="h-7 px-2.5 text-xs border-border/60 text-muted-foreground hover:text-foreground hover:border-border gap-1"
+        >
+          {copiedFull ? (
+            <CopyCheck className="w-3 h-3" />
+          ) : (
+            <Copy className="w-3 h-3" />
+          )}
+          Copy All
+        </Button>
+      </div>
+    </motion.div>
+  );
+}
+
+function PlainVariationCard({
+  variation,
+  idx,
+  copiedIndex,
+  onCopy,
+}: {
+  variation: string;
+  idx: number;
+  copiedIndex: number | null;
+  onCopy: (text: string, idx: number) => void;
+}) {
+  return (
+    <motion.div
+      data-ocid={`results.prompt.item.${idx + 1}`}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: idx * 0.08, duration: 0.3 }}
+      className="bg-surface border border-border rounded-2xl p-4 group hover:border-primary/40 transition-colors"
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 flex-1 min-w-0">
+          <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/15 border border-primary/30 flex items-center justify-center text-[10px] font-bold text-primary">
+            {idx + 1}
+          </span>
+          <p className="text-sm text-foreground leading-relaxed">{variation}</p>
+        </div>
+        <Button
+          data-ocid={`results.copy.button.${idx + 1}`}
+          variant="outline"
+          size="sm"
+          onClick={() => onCopy(variation, idx)}
+          className="flex-shrink-0 h-7 px-2.5 text-xs border-primary/30 text-primary hover:bg-primary/10 hover:text-primary hover:border-primary/60 gap-1 opacity-0 group-hover:opacity-100 transition-all"
+        >
+          {copiedIndex === idx ? (
+            <CopyCheck className="w-3 h-3" />
+          ) : (
+            <Copy className="w-3 h-3" />
+          )}
+          Copy
+        </Button>
+      </div>
+    </motion.div>
   );
 }

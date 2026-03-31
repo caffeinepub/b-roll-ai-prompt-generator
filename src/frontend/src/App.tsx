@@ -39,6 +39,8 @@ import {
   useIsSystemApiKeySet,
 } from "./hooks/useQueries";
 
+export type PromptType = "broll" | "animation" | "avatar";
+
 export type FormData = {
   sceneCategory: string;
   scene: string;
@@ -53,6 +55,7 @@ export type FormData = {
   styleFilters: string[];
   numVariations: number;
   faceless: boolean;
+  promptType: PromptType;
 };
 
 const DEFAULT_FORM: FormData = {
@@ -69,6 +72,7 @@ const DEFAULT_FORM: FormData = {
   styleFilters: ["Cinematic", "Shallow depth of field"],
   numVariations: 3,
   faceless: false,
+  promptType: "broll",
 };
 
 const PLAN_LABEL: Record<string, string> = {
@@ -306,11 +310,11 @@ function MainApp() {
               {/* Hero heading */}
               <div className="mb-8">
                 <h1 className="text-3xl sm:text-4xl font-extrabold uppercase tracking-tight text-foreground leading-tight">
-                  Generate B-Roll Prompts
+                  Generate AI Prompts
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  Craft cinematic AI image prompts for MidJourney, DALL·E, or
-                  Stable Diffusion
+                  Craft cinematic B-Roll, Animation, and Talking Avatar prompts
+                  for MidJourney, DALL·E, or Stable Diffusion
                 </p>
               </div>
 

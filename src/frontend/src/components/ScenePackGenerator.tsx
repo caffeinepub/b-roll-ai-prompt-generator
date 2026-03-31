@@ -368,9 +368,35 @@ Each scene must:
 
 ---
 
+OUTPUT BEHAVIOR (CRITICAL):
+
+Do NOT repeat or include any of the instructions above.
+
+Do NOT include:
+- INPUT section
+- PRESET CONTEXT
+- RULES or GUIDELINES
+
+ONLY output the final SCENE PACK using the exact format below.
+
+---
+
+SCENE DENSITY RULE:
+
+Avoid filler.
+
+Each scene must feel like:
+- a key moment
+- a meaningful shift
+- a progression in story
+
+If a scene does not add value, improve it.
+
+---
+
 OUTPUT FORMAT (STRICT):
 
----SCENE{n}---
+---SCENE {n}---
 LABEL: {label}
 DESCRIPTION: {short engaging line}
 PROMPT: {detailed prompt}
@@ -481,7 +507,7 @@ function parseScenes(raw: string): SceneResult[] {
   }
 
   const blocks = content
-    .split(/---SCENE\d+---/)
+    .split(/---SCENE \d+---/)
     .filter((b: string) => b.trim());
   for (let i = 0; i < blocks.length; i++) {
     const block = blocks[i];

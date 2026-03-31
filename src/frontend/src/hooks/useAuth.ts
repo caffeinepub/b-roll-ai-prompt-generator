@@ -25,19 +25,21 @@ function firstOrNull<T>(arr: T[]): T | null {
 
 function isCanisterStoppedError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
+  const lower = msg.toLowerCase();
   return (
-    msg.includes("IC0508") ||
-    msg.includes("canister is stopped") ||
-    msg.includes("Canister is stopped") ||
-    msg.includes("reject_code: 5") ||
-    (msg.includes("Canister") && msg.includes("stopped"))
+    lower.includes("ic0508") ||
+    lower.includes("canister is stopped") ||
+    lower.includes("reject code: 5") ||
+    lower.includes("reject_code: 5") ||
+    lower.includes('"reject_code":5') ||
+    (lower.includes("canister") && lower.includes("stopped"))
   );
 }
 
 async function withCanisterRetry<T>(
   fn: () => Promise<T>,
-  maxRetries = 5,
-  delayMs = 2000,
+  maxRetries = 10,
+  delayMs = 3000,
 ): Promise<T> {
   for (let i = 0; i <= maxRetries; i++) {
     try {
@@ -59,7 +61,6 @@ export function useAuth() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCanisterStarting, setIsCanisterStarting] = useState(false);
 
-  // On mount, restore session from localStorage
   useEffect(() => {
     const storedToken = localStorage.getItem(SESSION_KEY);
     if (!storedToken) {
@@ -81,8 +82,10 @@ export function useAuth() {
           localStorage.removeItem(SESSION_KEY);
         }
       } catch (err) {
-        if (err instanceof Error && err.message === "CANISTER_STARTING") {
-          // Keep the session token -- canister is still waking up
+        if (
+          (err instanceof Error && err.message === "CANISTER_STARTING") ||
+          isCanisterStoppedError(err)
+        ) {
           setIsCanisterStarting(true);
         } else {
           localStorage.removeItem(SESSION_KEY);
@@ -105,7 +108,7 @@ export function useAuth() {
         setIsCanisterStarting(false);
       }
     } catch {
-      // ignore refresh errors silently
+      // ignore
     }
   }, []);
 
@@ -150,7 +153,7 @@ export function useAuth() {
         const actor = await getBackend();
         await actor.logout(token);
       } catch {
-        // ignore logout errors
+        // ignore
       }
     }
     localStorage.removeItem(SESSION_KEY);

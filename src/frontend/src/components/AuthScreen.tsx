@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Eye, EyeOff, Film, Loader2 } from "lucide-react";
+import { Eye, EyeOff, Film, Loader2, RefreshCw } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 
@@ -54,6 +54,16 @@ function StartingOverlay() {
           />
         ))}
       </div>
+      <Button
+        data-ocid="auth.canister_starting.button"
+        variant="outline"
+        size="sm"
+        onClick={() => window.location.reload()}
+        className="mt-1 gap-2 text-xs border-primary/30 text-primary hover:bg-primary/10"
+      >
+        <RefreshCw className="w-3.5 h-3.5" />
+        Try Again
+      </Button>
     </motion.div>
   );
 }

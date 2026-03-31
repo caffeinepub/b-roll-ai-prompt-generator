@@ -595,7 +595,7 @@ function MainApp() {
 }
 
 export default function App() {
-  const { user, isLoading, login, signUp } = useAuth();
+  const { user, isLoading, isCanisterStarting, login, signUp } = useAuth();
 
   if (isLoading) {
     return (
@@ -614,7 +614,13 @@ export default function App() {
   }
 
   if (!user) {
-    return <AuthScreen onLogin={login} onSignUp={signUp} />;
+    return (
+      <AuthScreen
+        onLogin={login}
+        onSignUp={signUp}
+        isCanisterStarting={isCanisterStarting}
+      />
+    );
   }
 
   return <MainApp />;

@@ -23,10 +23,41 @@ function firstOrNull<T>(arr: T[]): T | null {
   return arr.length > 0 ? (arr[0] as T) : null;
 }
 
+function isCanisterStoppedError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return (
+    msg.includes("IC0508") ||
+    msg.includes("canister is stopped") ||
+    msg.includes("Canister is stopped") ||
+    msg.includes("reject_code: 5") ||
+    (msg.includes("Canister") && msg.includes("stopped"))
+  );
+}
+
+async function withCanisterRetry<T>(
+  fn: () => Promise<T>,
+  maxRetries = 5,
+  delayMs = 2000,
+): Promise<T> {
+  for (let i = 0; i <= maxRetries; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      if (isCanisterStoppedError(err) && i < maxRetries) {
+        await new Promise((r) => setTimeout(r, delayMs));
+      } else {
+        throw err;
+      }
+    }
+  }
+  throw new Error("CANISTER_STARTING");
+}
+
 export function useAuth() {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCanisterStarting, setIsCanisterStarting] = useState(false);
 
   // On mount, restore session from localStorage
   useEffect(() => {
@@ -38,16 +69,24 @@ export function useAuth() {
     (async () => {
       try {
         const actor = await getBackend();
-        const result: AuthUser[] = await actor.getCurrentUser(storedToken);
+        const result: AuthUser[] = await withCanisterRetry(() =>
+          actor.getCurrentUser(storedToken),
+        );
         const found = firstOrNull(result);
         if (found) {
           setSessionToken(storedToken);
           setUser(found);
+          setIsCanisterStarting(false);
         } else {
           localStorage.removeItem(SESSION_KEY);
         }
-      } catch {
-        localStorage.removeItem(SESSION_KEY);
+      } catch (err) {
+        if (err instanceof Error && err.message === "CANISTER_STARTING") {
+          // Keep the session token -- canister is still waking up
+          setIsCanisterStarting(true);
+        } else {
+          localStorage.removeItem(SESSION_KEY);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -63,6 +102,7 @@ export function useAuth() {
       const found = firstOrNull(result);
       if (found) {
         setUser(found);
+        setIsCanisterStarting(false);
       }
     } catch {
       // ignore refresh errors silently
@@ -71,9 +111,8 @@ export function useAuth() {
 
   const login = useCallback(async (email: string, password: string) => {
     const actor = await getBackend();
-    const result: { ok: string } | { err: string } = await actor.login(
-      email,
-      password,
+    const result: { ok: string } | { err: string } = await withCanisterRetry(
+      () => actor.login(email, password),
     );
     if ("err" in result) throw new Error(result.err);
     const token = result.ok;
@@ -81,14 +120,16 @@ export function useAuth() {
     setSessionToken(token);
     const userResult: AuthUser[] = await actor.getCurrentUser(token);
     const found = firstOrNull(userResult);
-    if (found) setUser(found);
+    if (found) {
+      setUser(found);
+      setIsCanisterStarting(false);
+    }
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
     const actor = await getBackend();
-    const result: { ok: string } | { err: string } = await actor.signUp(
-      email,
-      password,
+    const result: { ok: string } | { err: string } = await withCanisterRetry(
+      () => actor.signUp(email, password),
     );
     if ("err" in result) throw new Error(result.err);
     const token = result.ok;
@@ -96,7 +137,10 @@ export function useAuth() {
     setSessionToken(token);
     const userResult: AuthUser[] = await actor.getCurrentUser(token);
     const found = firstOrNull(userResult);
-    if (found) setUser(found);
+    if (found) {
+      setUser(found);
+      setIsCanisterStarting(false);
+    }
   }, []);
 
   const logout = useCallback(async () => {
@@ -112,8 +156,18 @@ export function useAuth() {
     localStorage.removeItem(SESSION_KEY);
     setSessionToken(null);
     setUser(null);
+    setIsCanisterStarting(false);
     window.location.reload();
   }, []);
 
-  return { user, sessionToken, isLoading, login, signUp, logout, refreshUser };
+  return {
+    user,
+    sessionToken,
+    isLoading,
+    isCanisterStarting,
+    login,
+    signUp,
+    logout,
+    refreshUser,
+  };
 }

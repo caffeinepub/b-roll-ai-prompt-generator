@@ -9,20 +9,73 @@ import { useState } from "react";
 interface AuthScreenProps {
   onLogin: (email: string, password: string) => Promise<void>;
   onSignUp: (email: string, password: string) => Promise<void>;
+  isCanisterStarting?: boolean;
+}
+
+function StartingOverlay() {
+  return (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.4, ease: "easeOut" }}
+      className="flex flex-col items-center justify-center gap-5 py-10 text-center"
+      data-ocid="auth.canister_starting.panel"
+    >
+      <div className="relative">
+        <div className="w-16 h-16 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center">
+          <Film className="w-8 h-8 text-primary" />
+        </div>
+        <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-background border border-border flex items-center justify-center">
+          <Loader2 className="w-3 h-3 text-primary animate-spin" />
+        </div>
+      </div>
+      <div className="space-y-1.5">
+        <h2 className="text-lg font-bold text-foreground">
+          Service is starting up...
+        </h2>
+        <p className="text-sm text-muted-foreground max-w-[240px]">
+          This usually takes 10–20 seconds. Please wait.
+        </p>
+        <p className="text-xs text-muted-foreground/60 mt-2">
+          The page will be ready shortly.
+        </p>
+      </div>
+      <div className="flex gap-1 mt-2">
+        {[0, 1, 2].map((i) => (
+          <motion.div
+            key={i}
+            className="w-1.5 h-1.5 rounded-full bg-primary/60"
+            animate={{ opacity: [0.3, 1, 0.3] }}
+            transition={{
+              duration: 1.2,
+              repeat: Number.POSITIVE_INFINITY,
+              delay: i * 0.2,
+            }}
+          />
+        ))}
+      </div>
+    </motion.div>
+  );
 }
 
 function AuthForm({
   mode,
   onSubmit,
+  isCanisterStarting,
 }: {
   mode: "login" | "signup";
   onSubmit: (email: string, password: string) => Promise<void>;
+  isCanisterStarting?: boolean;
 }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  if (isCanisterStarting) {
+    return <StartingOverlay />;
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,7 +98,11 @@ function AuthForm({
     try {
       await onSubmit(email.trim(), password);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
+      if (err instanceof Error && err.message === "CANISTER_STARTING") {
+        setError("Service is starting up. Please wait a moment and try again.");
+      } else {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -142,7 +199,11 @@ function AuthForm({
   );
 }
 
-export default function AuthScreen({ onLogin, onSignUp }: AuthScreenProps) {
+export default function AuthScreen({
+  onLogin,
+  onSignUp,
+  isCanisterStarting,
+}: AuthScreenProps) {
   return (
     <div
       className="min-h-screen bg-background flex flex-col items-center justify-center px-4 relative overflow-hidden"
@@ -180,32 +241,36 @@ export default function AuthScreen({ onLogin, onSignUp }: AuthScreenProps) {
 
         {/* Auth card */}
         <div className="bg-card border border-border rounded-xl p-6 shadow-lg">
-          <Tabs defaultValue="login" data-ocid="auth.tab">
-            <TabsList className="w-full mb-6 bg-muted/40 border border-border/50">
-              <TabsTrigger
-                value="login"
-                data-ocid="auth.login.tab"
-                className="flex-1 text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Sign In
-              </TabsTrigger>
-              <TabsTrigger
-                value="signup"
-                data-ocid="auth.signup.tab"
-                className="flex-1 text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
-              >
-                Sign Up
-              </TabsTrigger>
-            </TabsList>
+          {isCanisterStarting ? (
+            <StartingOverlay />
+          ) : (
+            <Tabs defaultValue="login" data-ocid="auth.tab">
+              <TabsList className="w-full mb-6 bg-muted/40 border border-border/50">
+                <TabsTrigger
+                  value="login"
+                  data-ocid="auth.login.tab"
+                  className="flex-1 text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Sign In
+                </TabsTrigger>
+                <TabsTrigger
+                  value="signup"
+                  data-ocid="auth.signup.tab"
+                  className="flex-1 text-sm data-[state=active]:bg-primary data-[state=active]:text-primary-foreground"
+                >
+                  Sign Up
+                </TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="login">
-              <AuthForm mode="login" onSubmit={onLogin} />
-            </TabsContent>
+              <TabsContent value="login">
+                <AuthForm mode="login" onSubmit={onLogin} />
+              </TabsContent>
 
-            <TabsContent value="signup">
-              <AuthForm mode="signup" onSubmit={onSignUp} />
-            </TabsContent>
-          </Tabs>
+              <TabsContent value="signup">
+                <AuthForm mode="signup" onSubmit={onSignUp} />
+              </TabsContent>
+            </Tabs>
+          )}
         </div>
 
         {/* Footer */}

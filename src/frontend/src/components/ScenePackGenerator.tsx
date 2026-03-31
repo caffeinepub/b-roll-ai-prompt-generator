@@ -10,7 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Check,
   Clapperboard,
@@ -115,28 +114,335 @@ const PRESETS: Preset[] = [
   },
 ];
 
-const PRESET_GUIDELINES: Record<PresetKey, string> = {
-  cafe_work:
-    "Environment: coffee shop, laptop, work desk, cozy indoor. Camera: static or slow push-in, warm depth of field. Lighting: natural window light, warm golden tones. Mood: focused, calm, productive. Character: typing, sipping coffee, thinking, reading.",
-  bedroom:
-    "Environment: bedroom, bed, window light, morning or night atmosphere. Camera: close-up, gentle handheld. Lighting: soft natural or lamplight, low contrast. Mood: emotional, quiet, personal. Character: waking up, journaling, staring at ceiling, introspective.",
-  city_street:
-    "Environment: streets, sidewalks, urban buildings, city crowd. Camera: handheld vlog-style, wide walking shots. Lighting: daylight, overcast or golden hour. Mood: casual, energetic, real. Character: walking, observing, talking to camera.",
-  airport:
-    "Environment: airport terminal, departure gates, escalators, windows. Camera: cinematic wide, slow tracking shots. Lighting: cool fluorescent mixed with natural. Mood: reflective, anticipatory, transitional. Character: walking with luggage, waiting, looking at board.",
-  nightlife:
-    "Environment: dark venues, neon-lit streets, clubs, city nights. Camera: dynamic, handheld, motion blur. Lighting: neon, strobe, deep shadows. Mood: energetic, aesthetic, electric. Character: moving through crowds, dancing, observing lights.",
-  car_travel:
-    "Environment: inside car, dashboard view, passenger seat, windows showing passing scenery. Camera: POV, handheld, dashboard mount. Lighting: changing natural light, sunset glow. Mood: introspective, vlog, storytelling. Character: driving, talking to camera, thinking.",
-  bathroom:
-    "Environment: bathroom, mirror reflection, sink, tiles. Camera: close-up mirror POV, tight framing. Lighting: bathroom light, dramatic shadows. Mood: personal, dramatic, raw. Character: talking to mirror, self-reflection, morning routine.",
-  beach:
-    "Environment: beach, ocean, sand, sun. Camera: slow motion, wide landscape, golden hour. Lighting: warm sunlight, lens flare. Mood: relaxed, aspirational, lifestyle. Character: walking on beach, swimming, sitting by ocean.",
-  fitness:
-    "Environment: gym, outdoor workout, training space. Camera: dynamic, close-up effort shots, motivational angles. Lighting: dramatic, high contrast. Mood: intense, disciplined, focused. Character: lifting, running, sweating, pushing limits.",
-  viral:
-    "Environment: everyday relatable locations — kitchen, bedroom, office, street. Camera: natural, casual, raw. Lighting: available light, imperfect. Mood: authentic, humorous, raw. Character: reacting, doing mundane tasks, being real.",
+// ── Preset Context Map ───────────────────────────────────────────────────────
+// Each entry maps a preset_type to the preset_context string injected into the master prompt.
+
+const PRESET_CONTEXT: Record<PresetKey, string> = {
+  cafe_work: `Environment: coffee shop, cozy indoor, laptop, work desk
+Camera: handheld or slow push-in
+Lighting: natural window light, warm tones
+Mood: calm, focused
+Behavior: checking phone, sipping coffee, thinking`,
+
+  bedroom: `Environment: bedroom, bed, soft pillows, window light
+Camera: close-up, gentle handheld
+Lighting: soft natural or lamplight, low contrast
+Mood: emotional, quiet, personal
+Behavior: waking up, journaling, staring at ceiling, introspective`,
+
+  city_street: `Environment: streets, sidewalks, urban buildings, city crowd
+Camera: handheld vlog-style, wide walking shots
+Lighting: daylight, overcast or golden hour
+Mood: casual, energetic, real
+Behavior: walking, observing, talking to camera`,
+
+  airport: `Environment: airport terminal, departure gates, escalators, windows
+Camera: cinematic wide, slow tracking shots
+Lighting: cool fluorescent mixed with natural
+Mood: reflective, anticipatory, transitional
+Behavior: walking with luggage, waiting, looking at board`,
+
+  nightlife: `Environment: dark venues, neon-lit streets, clubs, city nights
+Camera: dynamic handheld, motion blur
+Lighting: neon, strobe, deep shadows
+Mood: energetic, aesthetic, electric
+Behavior: moving through crowds, dancing, observing lights`,
+
+  car_travel: `Environment: inside car, dashboard view, passenger seat, windows showing passing scenery
+Camera: POV, handheld, dashboard mount
+Lighting: changing natural light, sunset glow
+Mood: introspective, vlog, storytelling
+Behavior: driving, talking to camera, thinking`,
+
+  bathroom: `Environment: bathroom, mirror reflection, sink, tiles
+Camera: close-up mirror POV, tight framing
+Lighting: bathroom light, dramatic shadows
+Mood: personal, dramatic, raw
+Behavior: talking to mirror, self-reflection, morning routine`,
+
+  beach: `Environment: beach, ocean, sand, sun
+Camera: slow motion, wide landscape, golden hour
+Lighting: warm sunlight, lens flare
+Mood: relaxed, aspirational, lifestyle
+Behavior: walking on beach, swimming, sitting by ocean`,
+
+  fitness: `Environment: gym, outdoor workout, training space
+Camera: dynamic close-up effort shots, motivational angles
+Lighting: dramatic, high contrast
+Mood: intense, disciplined, focused
+Behavior: lifting, running, sweating, pushing limits`,
+
+  viral: `Environment: everyday relatable locations — kitchen, bedroom, office, street
+Camera: natural, casual, raw
+Lighting: available light, imperfect
+Mood: authentic, humorous, raw
+Behavior: reacting, doing mundane tasks, being real`,
 };
+
+// ── Master Prompt Template ───────────────────────────────────────────────────
+// Variables: {topic}, {style}, {n}, {preset}, {preset_context}
+
+const MASTER_PROMPT_TEMPLATE = `You are a top-tier viral content creator, cinematic director, and AI prompt engineer specializing in short-form video (TikTok, Reels, Shorts).
+
+Your task is to generate a HIGHLY ADDICTIVE, emotionally engaging SCENE PACK designed to maximize retention, curiosity, and loop potential.
+
+---
+
+INPUT:
+Topic: {topic}
+Style: {style}
+Preset: {preset}
+Number of Scenes: {n}
+
+---
+
+PRESET CONTEXT:
+{preset_context}
+
+---
+
+SCENE STRUCTURE:
+
+If 3 scenes:
+
+1. Hook
+2. Action
+3. Ending
+
+If 5 scenes:
+
+1. Hook
+2. Setup
+3. Action
+4. Emotion
+5. Ending
+
+If 7 scenes:
+
+1. Hook
+2. Setup
+3. Build
+4. Action
+5. Emotion
+6. Transition
+7. Ending
+
+---
+
+CORE DIRECTIVE:
+
+This is NOT a polished commercial.
+
+This must feel like:
+
+* real life
+* imperfect
+* emotionally subtle
+* captured naturally (iPhone / handheld)
+
+BUT with hidden viral tension.
+
+---
+
+VIRAL PSYCHOLOGY RULES (CRITICAL):
+
+Every scene MUST include at least ONE of:
+
+* hesitation before action
+* interrupted movement
+* reaction to something unseen
+* internal conflict (almost doing something, then stopping)
+* subtle change in emotion
+* unexpected micro-action (pattern interrupt)
+
+Avoid predictable repetition.
+
+---
+
+HOOK (SCENE 1) — SCROLL-STOPPING:
+
+The first scene must:
+
+* start mid-action (not before action)
+* include tension, hesitation, or reaction
+* create immediate curiosity
+
+Avoid:
+
+* calm openings
+* neutral behavior
+* generic "checking phone" without context
+
+The viewer should feel:
+"What just happened?" or "What is going on?"
+
+---
+
+STORY PROGRESSION:
+
+* Each scene must evolve (no repetition)
+* Add small changes in behavior or emotion
+* Build curiosity or tension gradually
+* Make viewer wonder: "what happens next?"
+
+---
+
+RETENTION TRIGGERS:
+
+Across the sequence, include:
+
+* at least one moment of hesitation
+* one unexpected action
+* one emotional shift
+* one unresolved moment
+
+These elements should increase watch time and replayability.
+
+---
+
+LOOP STRATEGY (VERY IMPORTANT):
+
+The final scene must create a seamless loop by:
+
+* visually matching or mirroring Scene 1
+  OR
+* repeating a similar action with a different emotional meaning
+
+The viewer should not notice where the video restarts.
+
+---
+
+REALISM RULES:
+
+* Slight imperfections required (camera shake, blur, imperfect framing)
+* Avoid overproduced cinematic look
+* Keep it raw and natural
+
+---
+
+CAMERA STYLE:
+
+* handheld
+* over-the-shoulder
+* POV angles when relevant
+* close-up for emotional moments
+* slight movement always preferred
+
+---
+
+LIGHTING:
+
+* natural light
+* soft shadows
+* slight over/under exposure allowed
+
+---
+
+EMOTIONAL LAYER:
+
+Each scene must express:
+
+* thought
+* reaction
+* mood shift
+
+Even minimal.
+
+---
+
+PROMPT REQUIREMENTS:
+
+Each scene must:
+
+* Keep SAME character
+* Include:
+
+  * micro-action
+  * camera direction
+  * lighting
+  * emotional tone
+  * environment details
+  * imperfections
+* Be 50–100 words
+* Feel like directing a real video shoot
+
+---
+
+OUTPUT FORMAT (STRICT):
+
+---SCENE {n}---
+LABEL: {label}
+DESCRIPTION: {short engaging line}
+PROMPT: {detailed prompt}
+---END SCENE {n}---
+
+---
+
+ANTI-BORING ENFORCER (CRITICAL):
+
+Reject any scene that includes:
+
+* generic actions (e.g. "sitting and checking phone" without variation)
+* repeated behavior across scenes
+* no emotional shift
+* no micro-tension
+
+If a scene feels predictable, rewrite it with:
+
+* a hesitation
+* a reaction
+* or an interrupted action
+
+Every scene must feel like a unique moment, not a variation of the same shot.
+
+---
+
+FINAL QUALITY CHECK:
+
+* No static scenes
+* No repetition
+* Each scene adds tension or curiosity
+* Strong hook
+* Strong loop ending
+
+---
+
+ELITE MODE:
+
+Push beyond obvious ideas.
+Avoid generic behavior.
+Make it feel like a real, relatable, slightly uncomfortable human moment.
+
+---
+
+Now generate the scene pack.`;
+
+// ── Template Variable Injector ───────────────────────────────────────────────
+
+function buildFinalPrompt(vars: {
+  topic: string;
+  style: string;
+  sceneCount: number;
+  sceneLabels: string[];
+  presetKey: PresetKey | null;
+  isElite: boolean;
+}): string {
+  const { topic, style, sceneCount, presetKey } = vars;
+
+  const resolvedStyle = style.trim() || "cinematic, modern";
+  const presetLabel = presetKey
+    ? (PRESETS.find((p) => p.key === presetKey)?.label ?? "None")
+    : "None";
+  const presetContext = presetKey
+    ? PRESET_CONTEXT[presetKey]
+    : "No specific preset — use cinematic defaults for environment, lighting, and mood.";
+  // Use global regex replaces so all occurrences of {scene_count} etc. are filled
+  return MASTER_PROMPT_TEMPLATE.replace(/\{topic\}/g, topic)
+    .replace(/\{style\}/g, resolvedStyle)
+    .replace(/\{n\}/g, String(sceneCount))
+    .replace(/\{preset\}/g, presetLabel)
+    .replace(/\{preset_context\}/g, presetContext);
+}
 
 // Presets accessible per plan
 const FREE_PRESETS: PresetKey[] = ["cafe_work", "city_street", "viral"];
@@ -152,7 +458,6 @@ const STARTER_PRESETS: PresetKey[] = [
 function isPresetUnlocked(key: PresetKey, plan: string): boolean {
   if (plan === "pro" || plan === "elite") return true;
   if (plan === "starter") return STARTER_PRESETS.includes(key);
-  // free
   return FREE_PRESETS.includes(key);
 }
 
@@ -162,7 +467,7 @@ function getMaxScenes(plan: string): number {
   if (plan === "starter") return 3;
   if (plan === "pro") return 5;
   if (plan === "elite") return 7;
-  return 0; // free = locked
+  return 0;
 }
 
 function parseScenes(raw: string): SceneResult[] {
@@ -239,46 +544,11 @@ export default function ScenePackGenerator({
   const [scenes, setScenes] = useState<SceneResult[]>([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
-  const [corePrompt, setCorePrompt] = useState<string>("");
+  const [finalPrompt, setFinalPrompt] = useState<string>("");
   const [selectedPreset, setSelectedPreset] = useState<PresetKey | null>(null);
 
   const effectiveCount = Math.min(sceneCount, maxScenes) as 3 | 5 | 7;
   const labels = SCENE_LABELS[effectiveCount] ?? SCENE_LABELS[3];
-
-  const buildPrompt = () => {
-    const styleStr = style.trim() || "cinematic, modern";
-    const presetBlock = selectedPreset
-      ? `\nPRESET CONTEXT: ${PRESET_GUIDELINES[selectedPreset]}\n`
-      : "";
-    const hookNote =
-      "\nIMPORTANT FOR SCENE 1 (Hook): Make it immediately attention-grabbing — open with a strong visual action or emotional moment. Avoid generic openers. Hook the viewer in the first frame.\n";
-    const eliteNote =
-      userPlan === "elite"
-        ? "\nQuality requirement: Ultra-detailed, cinematic masterclass quality. Every scene must feel like a Hollywood production.\n"
-        : "";
-
-    return `You are a professional video content creator and AI prompt engineer.
-Generate a scene pack of ${effectiveCount} connected scenes for: "${topic}".
-Style: ${styleStr}
-${presetBlock}
-Scene labels in order: ${labels.join(", ")}
-${hookNote}
-For EACH scene, output EXACTLY in this format (no extra text before or after):
----SCENE {n}---
-LABEL: {label}
-DESCRIPTION: {one sentence description}
-PROMPT: {detailed AI image/video prompt including: same main character/subject throughout, specific action or movement, camera angle and movement, lighting description, mood/emotion, environment details, style cues}
----END SCENE {n}---
-
-Rules:
-- All scenes share the same main character/subject
-- Visual style must be consistent across all scenes
-- Scenes tell a progressive, connected story
-- Each prompt is detailed and cinematic (50-100 words)
-- Do NOT add any other text outside the scene blocks
-${eliteNote}
-Now generate the ${effectiveCount} scenes:`;
-  };
 
   const handleGenerate = async () => {
     if (!topic.trim()) {
@@ -291,8 +561,19 @@ Now generate the ${effectiveCount} scenes:`;
     }
     setIsGenerating(true);
     try {
-      const prompt = buildPrompt();
-      setCorePrompt(prompt);
+      // Build the fully-replaced prompt from the master template
+      const prompt = buildFinalPrompt({
+        topic: topic.trim(),
+        style: style.trim(),
+        sceneCount: effectiveCount,
+        sceneLabels: labels,
+        presetKey: selectedPreset,
+        isElite: userPlan === "elite",
+      });
+
+      // Store for debug panel
+      setFinalPrompt(prompt);
+
       const result = await actor.makePromptRequestWithSession(
         sessionToken,
         prompt,
@@ -424,9 +705,7 @@ Now generate the ${effectiveCount} scenes:`;
                         : "border-border/40 bg-muted/5 opacity-50 cursor-not-allowed",
                   ].join(" ")}
                 >
-                  {/* Emoji */}
                   <span className="text-xl leading-none">{preset.emoji}</span>
-                  {/* Label */}
                   <span
                     className={`text-xs font-semibold leading-tight ${
                       isSelected ? "text-primary" : "text-foreground"
@@ -434,17 +713,14 @@ Now generate the ${effectiveCount} scenes:`;
                   >
                     {preset.label}
                   </span>
-                  {/* Desc */}
                   <span className="text-[10px] text-muted-foreground leading-tight">
                     {preset.desc}
                   </span>
-                  {/* Lock overlay */}
                   {!unlocked && (
                     <span className="absolute top-1.5 right-1.5 text-[10px]">
                       🔒
                     </span>
                   )}
-                  {/* Selected indicator */}
                   {isSelected && (
                     <span className="absolute top-1.5 right-1.5 w-3.5 h-3.5 rounded-full bg-primary flex items-center justify-center">
                       <Check className="w-2 h-2 text-primary-foreground" />
@@ -454,7 +730,6 @@ Now generate the ${effectiveCount} scenes:`;
               );
             })}
           </div>
-          {/* Access tier hint */}
           {userPlan !== "pro" && userPlan !== "elite" && (
             <p className="text-[10px] text-muted-foreground/60 mt-3 text-center">
               {userPlan === "starter"
@@ -493,7 +768,6 @@ Now generate the ${effectiveCount} scenes:`;
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Selected preset pill */}
           <AnimatePresence>
             {selectedPreset && (
               <motion.div
@@ -589,7 +863,6 @@ Now generate the ${effectiveCount} scenes:`;
             )}
           </div>
 
-          {/* Scene preview labels */}
           <div className="flex flex-wrap gap-1.5 pt-1">
             {labels.map((label, i) => (
               <span
@@ -628,7 +901,7 @@ Now generate the ${effectiveCount} scenes:`;
       </Card>
 
       {/* ── Admin Debug Panel ──────────────────────────────────────────── */}
-      {debugMode && corePrompt && (
+      {debugMode && finalPrompt && (
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
@@ -641,7 +914,7 @@ Now generate the ${effectiveCount} scenes:`;
                 <div className="flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-amber-400" />
                   <CardTitle className="text-sm font-semibold text-amber-400">
-                    🧪 Debug: Request JSON Sent to API
+                    🧪 Debug: Final Prompt Sent to API
                   </CardTitle>
                   <Badge
                     variant="outline"
@@ -654,34 +927,19 @@ Now generate the ${effectiveCount} scenes:`;
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    const debugJson = JSON.stringify(
-                      {
-                        model: "gpt-4o",
-                        messages: [{ role: "user", content: corePrompt }],
-                      },
-                      null,
-                      2,
-                    );
-                    navigator.clipboard.writeText(debugJson);
-                    toast.success("JSON copied");
+                    navigator.clipboard.writeText(finalPrompt);
+                    toast.success("Prompt copied");
                   }}
                   className="gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 text-xs h-7"
                 >
                   <Copy className="w-3 h-3" />
-                  Copy JSON
+                  Copy Prompt
                 </Button>
               </div>
             </CardHeader>
             <CardContent>
               <pre className="whitespace-pre-wrap font-mono text-xs text-muted-foreground leading-relaxed bg-muted/20 border border-border/60 rounded-md p-3 overflow-x-auto">
-                {JSON.stringify(
-                  {
-                    model: "gpt-4o",
-                    messages: [{ role: "user", content: corePrompt }],
-                  },
-                  null,
-                  2,
-                )}
+                {finalPrompt}
               </pre>
             </CardContent>
           </Card>
@@ -697,7 +955,6 @@ Now generate the ${effectiveCount} scenes:`;
             transition={{ duration: 0.35 }}
             className="space-y-4"
           >
-            {/* Action bar */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h3 className="text-sm font-semibold text-foreground">
@@ -737,7 +994,6 @@ Now generate the ${effectiveCount} scenes:`;
               </div>
             </div>
 
-            {/* Scene cards */}
             {scenes.map((scene, idx) => (
               <motion.div
                 key={scene.number}

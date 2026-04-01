@@ -520,6 +520,68 @@ export default function ScenePackGenerator({
       setFinalPrompt(debugJson);
       setRawResponse("");
 
+      // In debug mode, skip the API call and return mock data
+      if (debugMode) {
+        const mockResponse = JSON.stringify({
+          scenes: [
+            {
+              scene_number: 1,
+              label: "Hook",
+              description: "He freezes mid-line… like he’s been here before.",
+              prompt:
+                "Extreme close-up, handheld iPhone shot of a young man’s finger dragging slowly across a line in a book. The camera subtly shakes as if the person filming is adjusting grip. Warm window light flickers slightly as someone passes outside. His lips move silently, then stop abruptly mid-word. His finger slides back to the beginning of the same sentence without hesitation, like muscle memory. A faint breath escapes. Background café noise dips for a second, creating an odd, uncomfortable pause.",
+            },
+            {
+              scene_number: 2,
+              label: "Setup",
+              description: "He tries to snap out of it… but can’t.",
+              prompt:
+                "Medium close-up from a slightly tilted angle across the table. He leans back, blinking harder than normal, as if resetting himself. His hand hovers over the coffee cup, fingers twitching before gripping it. He takes a sip but doesn’t swallow immediately—his eyes remain locked on the book. The camera drifts slightly out of focus, then corrects. He sets the cup down too carefully, almost robotic, then glances at the same line again with growing unease.",
+            },
+            {
+              scene_number: 3,
+              label: "Build",
+              description: "Something feels off… but he can’t explain it.",
+              prompt:
+                "Over-the-shoulder handheld shot, slightly off-center framing. The book is in focus, but the text feels repetitive as his finger taps the same word twice. His phone buzzes sharply on the table—he flinches. He grabs it quickly, unlocks it, then just stares at the screen without scrolling. A beat. His expression tightens. He locks the phone again and places it farther away than before, as if blaming it, but his eyes drift back to the exact same sentence.",
+            },
+            {
+              scene_number: 4,
+              label: "Action",
+              description: "He forces himself forward… but it backfires.",
+              prompt:
+                "Tighter handheld close-up, slight motion blur as he flips the page with sudden determination. The page turn is too aggressive, slightly crumpling the corner. He leans in, reading faster now, lips moving quicker—but then he stops. His brow furrows. Slowly, he flips back to the previous page. The camera lingers on his hesitation. He scans frantically… and lands on the exact same line again. His breathing becomes audible, shallow, as frustration starts creeping in.",
+            },
+            {
+              scene_number: 5,
+              label: "Emotion",
+              description: "Frustration turns into quiet panic.",
+              prompt:
+                "Close-up on his face, handheld, slightly too close, creating tension. His jaw tightens as he presses his fingers into his temple. The warm light now feels harsher, casting uneven shadows under his eyes. He lets out a soft, almost laugh-like exhale, but it dies halfway. His eyes dart between the book and the table, searching for something to ground him. He whispers a single word from the line… then stops, realizing he’s said it before.",
+            },
+            {
+              scene_number: 6,
+              label: "Transition",
+              description: "He tests himself… and gets the same result.",
+              prompt:
+                "POV-style shot as if from his own eyes, slightly shaky. He covers part of the page with his hand, revealing the line word by word. His finger taps each word deliberately, slower now. The café sound dulls, like underwater. He pauses before the last word, hesitating longer than before. Then he reveals it… and his finger instinctively drags back to the start again. A subtle, involuntary reaction. He pulls his hand away quickly, unsettled by his own reflex.",
+            },
+            {
+              scene_number: 7,
+              label: "Ending",
+              description: "He resets… without realizing he already did.",
+              prompt:
+                "Match cut to the same extreme close-up angle from Scene 1. His finger lands on the same line again, identical framing but slightly dimmer light as a cloud passes outside. The handheld camera trembles faintly. His lips begin forming the same words, same rhythm. A micro-hesitation—like he almost notices. But he doesn’t. His finger slides back to the start of the sentence once more. The ambient café sound loops seamlessly, creating a perfect visual and emotional loop.",
+            },
+          ],
+        });
+        setRawResponse(mockResponse);
+        const parsed = parseScenes(mockResponse);
+        setScenes(parsed);
+        setHasGenerated(true);
+        return;
+      }
+
       const result = await actor.makePromptRequestWithSession(
         sessionToken,
         userContent,

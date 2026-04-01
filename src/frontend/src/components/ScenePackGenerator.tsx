@@ -346,6 +346,18 @@ function getMaxScenes(plan: string): number {
   return 0;
 }
 
+function extractOpenAiError(raw: string): string | null {
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.error?.message) {
+      return String(parsed.error.message);
+    }
+  } catch {
+    // not JSON or no error field
+  }
+  return null;
+}
+
 function parseScenes(raw: string): SceneResult[] {
   // Step 1: Extract inner content from OpenAI response envelope
   let content = raw;
@@ -477,6 +489,7 @@ export default function ScenePackGenerator({
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
   const [finalPrompt, setFinalPrompt] = useState<string>("");
+  const [rawResponse, setRawResponse] = useState<string>("");
   const [selectedPreset, setSelectedPreset] = useState<PresetKey | null>(null);
 
   const effectiveCount = Math.min(sceneCount, maxScenes) as 3 | 5 | 7;
@@ -505,6 +518,7 @@ export default function ScenePackGenerator({
 
       // Store for debug panel
       setFinalPrompt(debugJson);
+      setRawResponse("");
 
       const result = await actor.makePromptRequestWithSession(
         sessionToken,
@@ -514,9 +528,18 @@ export default function ScenePackGenerator({
         toast.error(result.err);
         return;
       }
+
+      // Store raw response for debug panel
+      setRawResponse(result.ok);
+
       const parsed = parseScenes(result.ok);
       if (parsed.length === 0) {
-        toast.error("Could not parse scene output. Please try again.");
+        const apiError = extractOpenAiError(result.ok);
+        if (apiError) {
+          toast.error(`OpenAI error: ${apiError}`);
+        } else {
+          toast.error("Could not parse scene output. Please try again.");
+        }
         return;
       }
       setScenes(parsed);
@@ -869,10 +892,34 @@ export default function ScenePackGenerator({
                 </Button>
               </div>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
               <pre className="whitespace-pre-wrap font-mono text-xs text-muted-foreground leading-relaxed bg-muted/20 border border-border/60 rounded-md p-3 overflow-x-auto">
                 {finalPrompt}
               </pre>
+              {rawResponse && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-amber-400/80 uppercase tracking-wide">
+                      Raw API Response (last result)
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        navigator.clipboard.writeText(rawResponse);
+                        toast.success("Raw response copied");
+                      }}
+                      className="gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 text-xs h-6"
+                    >
+                      <Copy className="w-3 h-3" />
+                      Copy
+                    </Button>
+                  </div>
+                  <pre className="whitespace-pre-wrap font-mono text-xs text-muted-foreground leading-relaxed bg-muted/20 border border-border/60 rounded-md p-3 overflow-x-auto max-h-64">
+                    {rawResponse}
+                  </pre>
+                </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>

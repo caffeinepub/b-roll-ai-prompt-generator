@@ -503,7 +503,7 @@ actor {
       "{\"role\": \"system\", \"content\": \"" # escapedSystem # "\"}, " #
       "{\"role\": \"user\", \"content\": \"" # escapedUser # "\"}" #
       "]," #
-      "\"max_tokens\": 2048 }";
+      "\"max_tokens\": 4096 }";
     let url = "https://api.openai.com/v1/chat/completions";
     let headers = [
       { name = "Authorization"; value = "Bearer " # apiKey },

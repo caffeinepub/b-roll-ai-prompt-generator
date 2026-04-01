@@ -341,10 +341,11 @@ function parseScenes(raw: string): SceneResult[] {
     // raw might already be the inner content
   }
 
-  // Step 2: Strip markdown code fences
+  // Step 2: Aggressively strip ALL markdown code fences (with or without language tag,
+  // with or without surrounding whitespace/newlines)
   content = content
-    .replace(/^```(?:json)?\n?/i, "")
-    .replace(/\n?```$/i, "")
+    .replace(/```(?:json)?\s*/gi, "")
+    .replace(/\s*```/gi, "")
     .trim();
 
   // Step 3: Try direct JSON parse first
@@ -378,14 +379,22 @@ function parseScenes(raw: string): SceneResult[] {
   const direct = tryParseScenes(content);
   if (direct) return direct;
 
-  // Step 4: Extract JSON object from within the content (model may add surrounding text)
+  // Step 4: Extract JSON object from within the content using regex (model may add surrounding text)
   const jsonMatch = content.match(/\{[\s\S]*"scenes"[\s\S]*\}/);
   if (jsonMatch) {
     const extracted = tryParseScenes(jsonMatch[0]);
     if (extracted) return extracted;
   }
 
-  // Step 5: Legacy fallback: parse ---SCENE N--- text blocks
+  // Step 5: Extract JSON by finding first { and last } (handles any surrounding prose the model adds)
+  const firstBrace = content.indexOf("{");
+  const lastBrace = content.lastIndexOf("}");
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    const extracted = tryParseScenes(content.slice(firstBrace, lastBrace + 1));
+    if (extracted) return extracted;
+  }
+
+  // Step 6: Legacy fallback: parse ---SCENE N--- text blocks
   const scenes: SceneResult[] = [];
   const blocks = content
     .split(/---SCENE \d+---/)

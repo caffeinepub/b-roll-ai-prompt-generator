@@ -330,7 +330,7 @@ function getMaxScenes(plan: string): number {
 }
 
 function parseScenes(raw: string): SceneResult[] {
-  // Try to extract content from OpenAI response envelope
+  // Step 1: Extract inner content from OpenAI response envelope
   let content = raw;
   try {
     const envelope = JSON.parse(raw);
@@ -341,38 +341,51 @@ function parseScenes(raw: string): SceneResult[] {
     // raw might already be the inner content
   }
 
-  // Strip markdown code fences if present
+  // Step 2: Strip markdown code fences
   content = content
     .replace(/^```(?:json)?\n?/i, "")
     .replace(/\n?```$/i, "")
     .trim();
 
-  // Try to parse as JSON (new format)
-  try {
-    const parsed = JSON.parse(content);
-    if (Array.isArray(parsed?.scenes)) {
-      return parsed.scenes.map(
-        (
-          s: {
-            scene_number?: number;
-            label?: string;
-            description?: string;
-            prompt?: string;
-          },
-          i: number,
-        ) => ({
-          number: s.scene_number ?? i + 1,
-          label: s.label ?? `Scene ${i + 1}`,
-          description: s.description ?? "",
-          prompt: s.prompt ?? "",
-        }),
-      );
+  // Step 3: Try direct JSON parse first
+  const tryParseScenes = (text: string): SceneResult[] | null => {
+    try {
+      const parsed = JSON.parse(text);
+      if (Array.isArray(parsed?.scenes) && parsed.scenes.length > 0) {
+        return parsed.scenes.map(
+          (
+            s: {
+              scene_number?: number;
+              label?: string;
+              description?: string;
+              prompt?: string;
+            },
+            i: number,
+          ) => ({
+            number: s.scene_number ?? i + 1,
+            label: s.label ?? `Scene ${i + 1}`,
+            description: s.description ?? "",
+            prompt: s.prompt ?? "",
+          }),
+        );
+      }
+    } catch {
+      // not valid JSON
     }
-  } catch {
-    // Fall through to legacy text parser
+    return null;
+  };
+
+  const direct = tryParseScenes(content);
+  if (direct) return direct;
+
+  // Step 4: Extract JSON object from within the content (model may add surrounding text)
+  const jsonMatch = content.match(/\{[\s\S]*"scenes"[\s\S]*\}/);
+  if (jsonMatch) {
+    const extracted = tryParseScenes(jsonMatch[0]);
+    if (extracted) return extracted;
   }
 
-  // Legacy fallback: parse ---SCENE {n}--- text blocks
+  // Step 5: Legacy fallback: parse ---SCENE N--- text blocks
   const scenes: SceneResult[] = [];
   const blocks = content
     .split(/---SCENE \d+---/)

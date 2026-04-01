@@ -34,6 +34,7 @@ import PricingPage, {
   type PlanKey,
 } from "./components/PricingPage";
 import ResultsPanel from "./components/ResultsPanel";
+import SceneCards, { type Scene } from "./components/SceneCards";
 import ScenePackGenerator from "./components/ScenePackGenerator";
 import { useAuth } from "./hooks/useAuth";
 import {
@@ -61,14 +62,14 @@ export type FormData = {
 };
 
 const DEFAULT_FORM: FormData = {
-  sceneCategory: "Café / Work",
-  scene: "Late morning café laptop work",
+  sceneCategory: "Cafe / Work",
+  scene: "Late morning cafe laptop work",
   referenceDescription: "",
   gender: "Female",
   outfit: "white linen top, beige trousers",
   hair: "long wavy dark brown hair",
   subjectMood: "calm, introspective",
-  cameraAngle: "45° side angle",
+  cameraAngle: "45 degree side angle",
   lighting: "Soft morning sunlight",
   atmosphere: "Warm",
   styleFilters: ["Cinematic", "Shallow depth of field"],
@@ -91,13 +92,113 @@ const PLAN_BADGE_CLASS: Record<string, string> = {
   elite: "bg-amber-500/10 text-amber-400 border-amber-500/20",
 };
 
+const SAMPLE_SCENES: Scene[] = [
+  {
+    scene_number: 1,
+    label: "Hook",
+    description: "She stops mid-sip, eyes locking on something just off-frame.",
+    prompt:
+      "Handheld close-up of a woman's face over a coffee cup in a busy cafe. She raises the cup, then freezes, eyes shift sideways, lips slightly parted. Natural window light from the left, soft morning warmth. Camera drifts slightly right, slight motion blur. Her expression flickers from calm to guarded in a split second. Background bokeh of murmuring strangers. Imperfect framing, breath visible.",
+  },
+  {
+    scene_number: 2,
+    label: "Setup",
+    description: "She types three words, then deletes them all.",
+    prompt:
+      "Over-the-shoulder shot, medium angle, looking at an open laptop screen. Fingers hover over the keyboard, she types quickly, stops, backspaces everything. The glow of the screen reflects in her eyes. Golden hour light bleeds through a dusty window. Her jaw tightens slightly. Empty cup beside the laptop. Hand reaches for her phone, then stops. Shallow depth of field, slight handheld wobble.",
+  },
+  {
+    scene_number: 3,
+    label: "Action",
+    description:
+      "She closes the laptop and walks out, phone still on the table.",
+    prompt:
+      "Wide-medium angle from a low table perspective. She shuts the laptop with quiet finality. Stands up, smooths her jacket. Walks toward the exit. Camera stays fixed, her phone lights up on the table, face-down. Other patrons blur past in the background. Natural backlight from the exit door. Slight overexposure as she steps into the light. The abandoned phone holds the shot. Handheld drift left.",
+  },
+  {
+    scene_number: 4,
+    label: "Emotion",
+    description: "Outside, she pauses, hand on the door, not quite leaving.",
+    prompt:
+      "Exterior shot through the cafe glass window. She stands just beyond the door, back to camera. Hand still resting on the handle. The city moves around her, blurred pedestrians, distant traffic. Overcast sky, diffused grey light, slight lens flare. Her shoulders rise with a slow breath. She does not move for three full seconds. Handheld from inside, shooting through the glass, slight condensation blur.",
+  },
+  {
+    scene_number: 5,
+    label: "Ending",
+    description: "Back inside: her coffee is still warm. She sits down again.",
+    prompt:
+      "Return to the original table. The coffee cup steaming faintly. Her coat draped over the chair. She slides back into her seat, pulls the laptop open. Same angle as Scene 1, close-up on her face, over the rim of the cup. Eyes calmer now. A barely-there smile. Natural window light, same morning warmth. Camera holds steady. She raises the cup again, and this time, she drinks. Loop complete.",
+  },
+];
+
 type GeneratorMode = "scene-pack" | "single";
+type ActiveTab = "dashboard" | "history" | "admin" | "pricing" | "scene-demo";
+
+function SceneCardsDemo() {
+  const [loadingScene, setLoadingScene] = useState<number | null>(null);
+  const [scenes, setScenes] = useState<Scene[]>(SAMPLE_SCENES);
+
+  const handleRegenerate = (sceneNumber: number) => {
+    setLoadingScene(sceneNumber);
+    setTimeout(() => {
+      setScenes((prev) =>
+        prev.map((s) =>
+          s.scene_number === sceneNumber
+            ? { ...s, description: `[Regenerated] ${s.description}` }
+            : s,
+        ),
+      );
+      setLoadingScene(null);
+    }, 2000);
+  };
+
+  return (
+    <motion.div
+      key="scene-demo"
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -8 }}
+      transition={{ duration: 0.3 }}
+      className="max-w-6xl mx-auto"
+    >
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center">
+            <Clapperboard className="w-4 h-4 text-primary" />
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-extrabold uppercase tracking-tight text-foreground leading-tight">
+            Scene Pack Generator
+          </h1>
+        </div>
+        <p className="mt-1 text-sm text-muted-foreground max-w-xl">
+          Cinematic scene packs built for TikTok, Reels and Shorts, each scene
+          designed with viral psychology and loop retention in mind.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/15 text-primary border border-primary/30">
+            5 Scenes
+          </span>
+          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-muted/60 text-muted-foreground border border-border/40">
+            Demo Mode
+          </span>
+          <span className="text-xs text-muted-foreground">
+            Click Regenerate on any card to simulate a refresh
+          </span>
+        </div>
+      </div>
+
+      <SceneCards
+        scenes={scenes}
+        onRegenerate={handleRegenerate}
+        loadingScene={loadingScene}
+      />
+    </motion.div>
+  );
+}
 
 function MainApp() {
   const { user, logout, sessionToken, refreshUser } = useAuth();
-  const [activeTab, setActiveTab] = useState<
-    "dashboard" | "history" | "admin" | "pricing"
-  >("dashboard");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("dashboard");
   const [generatorMode, setGeneratorMode] =
     useState<GeneratorMode>("scene-pack");
   const [formData, setFormData] = useState<FormData>(DEFAULT_FORM);
@@ -155,7 +256,6 @@ function MainApp() {
 
   return (
     <div className="min-h-screen bg-background font-jakarta relative overflow-x-hidden">
-      {/* Purple glow background */}
       <div
         className="pointer-events-none fixed inset-0 z-0"
         style={{
@@ -164,10 +264,8 @@ function MainApp() {
         }}
       />
 
-      {/* Top Nav */}
       <header className="sticky top-0 z-40 bg-nav-bg border-b border-divider">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-6">
-          {/* Logo */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-4">
           <div className="flex items-center gap-2 flex-shrink-0">
             <div className="w-7 h-7 rounded-lg bg-primary/20 border border-primary/40 flex items-center justify-center">
               <Film className="w-4 h-4 text-primary" />
@@ -177,53 +275,36 @@ function MainApp() {
             </span>
           </div>
 
-          {/* Nav tabs */}
-          <nav className="flex items-center gap-1">
-            <button
-              type="button"
-              data-ocid="nav.dashboard.link"
-              onClick={() => setActiveTab("dashboard")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "dashboard"
-                  ? "text-foreground bg-muted/60"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-              }`}
-            >
-              <LayoutDashboard className="w-3.5 h-3.5" />
-              Dashboard
-            </button>
-            <button
-              type="button"
-              data-ocid="nav.history.link"
-              onClick={() => setActiveTab("history")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "history"
-                  ? "text-foreground bg-muted/60"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-              }`}
-            >
-              <History className="w-3.5 h-3.5" />
-              History
-            </button>
-            <button
-              type="button"
-              data-ocid="nav.pricing.link"
-              onClick={() => setActiveTab("pricing")}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                activeTab === "pricing"
-                  ? "text-foreground bg-muted/60"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
-              }`}
-            >
-              <CreditCard className="w-3.5 h-3.5" />
-              Pricing
-            </button>
+          <nav className="flex items-center gap-1 overflow-x-auto scrollbar-thin">
+            {(
+              [
+                ["dashboard", "Dashboard", LayoutDashboard],
+                ["scene-demo", "Scene Cards", Clapperboard],
+                ["history", "History", History],
+                ["pricing", "Pricing", CreditCard],
+              ] as [ActiveTab, string, React.ElementType][]
+            ).map(([tab, label, Icon]) => (
+              <button
+                key={tab}
+                type="button"
+                data-ocid={`nav.${tab}.link`}
+                onClick={() => setActiveTab(tab)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
+                  activeTab === tab
+                    ? "text-foreground bg-muted/60"
+                    : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
+                }`}
+              >
+                <Icon className="w-3.5 h-3.5" />
+                {label}
+              </button>
+            ))}
             {user?.role === "admin" && (
               <button
                 type="button"
                 data-ocid="nav.admin.link"
                 onClick={() => setActiveTab("admin")}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors whitespace-nowrap ${
                   activeTab === "admin"
                     ? "text-foreground bg-muted/60"
                     : "text-muted-foreground hover:text-foreground hover:bg-muted/30"
@@ -237,7 +318,6 @@ function MainApp() {
 
           <div className="flex-1" />
 
-          {/* Right actions */}
           <div className="flex items-center gap-2">
             {user?.role === "admin" && (
               <>
@@ -274,10 +354,8 @@ function MainApp() {
               </>
             )}
 
-            {/* User info + plan + usage + sign out */}
             {user && (
               <div className="flex items-center gap-2">
-                {/* Plan badge */}
                 <span
                   data-ocid="nav.plan.panel"
                   className={`text-[10px] font-bold hidden sm:inline-flex items-center px-2 py-0.5 rounded-full border ${
@@ -286,16 +364,12 @@ function MainApp() {
                 >
                   {planLabel}
                 </span>
-
-                {/* Usage badge */}
                 <span
                   data-ocid="nav.usage.panel"
                   className="text-xs text-muted-foreground hidden sm:block px-2 py-0.5 rounded-full bg-muted/40 border border-border/40"
                 >
                   {Number(user.requestsToday)}/{planLimit} today
                 </span>
-
-                {/* Upgrade button for non-elite users */}
                 {user.plan !== "elite" && (
                   <Button
                     data-ocid="nav.upgrade.button"
@@ -308,7 +382,6 @@ function MainApp() {
                     Upgrade
                   </Button>
                 )}
-
                 <span className="text-xs text-muted-foreground hidden sm:block max-w-[140px] truncate">
                   {user.email}
                 </span>
@@ -327,9 +400,12 @@ function MainApp() {
           </div>
         </div>
       </header>
+
       <main className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <AnimatePresence mode="wait">
-          {activeTab === "dashboard" ? (
+          {activeTab === "scene-demo" ? (
+            <SceneCardsDemo key="scene-demo" />
+          ) : activeTab === "dashboard" ? (
             <motion.div
               key="dashboard"
               initial={{ opacity: 0, y: 12 }}
@@ -337,18 +413,16 @@ function MainApp() {
               exit={{ opacity: 0, y: -8 }}
               transition={{ duration: 0.3 }}
             >
-              {/* Hero heading */}
               <div className="mb-6">
                 <h1 className="text-3xl sm:text-4xl font-extrabold uppercase tracking-tight text-foreground leading-tight">
                   Generate AI Prompts
                 </h1>
                 <p className="mt-1 text-sm text-muted-foreground">
                   Craft cinematic B-Roll, Animation, and Talking Avatar prompts
-                  for MidJourney, DALL·E, or Stable Diffusion
+                  for MidJourney, DALL-E, or Stable Diffusion
                 </p>
               </div>
 
-              {/* Mode selector */}
               <div
                 className="flex flex-col sm:flex-row gap-2 mb-6"
                 data-ocid="generator.mode.panel"
@@ -364,7 +438,7 @@ function MainApp() {
                   }`}
                 >
                   <Clapperboard className="w-4 h-4 flex-shrink-0" />
-                  <span>🎬 Scene Pack Generator</span>
+                  <span>Scene Pack Generator</span>
                   <span
                     className={`ml-1 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
                       generatorMode === "scene-pack"
@@ -391,7 +465,6 @@ function MainApp() {
                 </button>
               </div>
 
-              {/* Mode content */}
               <AnimatePresence mode="wait">
                 {generatorMode === "scene-pack" ? (
                   <motion.div
@@ -416,7 +489,6 @@ function MainApp() {
                     exit={{ opacity: 0, x: -10 }}
                     transition={{ duration: 0.2 }}
                   >
-                    {/* Two-col layout */}
                     <div className="grid grid-cols-1 lg:grid-cols-[1fr_1fr] gap-6">
                       <GenerateForm
                         formData={formData}
@@ -440,7 +512,6 @@ function MainApp() {
                       />
                     </div>
 
-                    {/* History below */}
                     {hasGenerated && (
                       <motion.div
                         initial={{ opacity: 0, y: 16 }}
@@ -484,9 +555,7 @@ function MainApp() {
               <PricingPage
                 sessionToken={sessionToken}
                 currentPlan={user?.plan ?? "free"}
-                onPlanChange={() => {
-                  refreshUser();
-                }}
+                onPlanChange={refreshUser}
               />
             </motion.div>
           ) : (
@@ -502,9 +571,10 @@ function MainApp() {
           )}
         </AnimatePresence>
       </main>
+
       <footer className="relative z-10 border-t border-divider py-5 mt-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 text-center text-xs text-muted-foreground">
-          © {new Date().getFullYear()}. Built with ♥ using{" "}
+          {new Date().getFullYear()} Built with love using{" "}
           <a
             href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
             target="_blank"
@@ -515,6 +585,7 @@ function MainApp() {
           </a>
         </div>
       </footer>
+
       <Dialog open={showApiModal} onOpenChange={setShowApiModal}>
         <DialogContent
           data-ocid="apikey.dialog"

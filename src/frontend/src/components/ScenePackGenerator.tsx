@@ -180,7 +180,7 @@ Behavior: reacting, doing mundane tasks, being real`,
 };
 
 // ── Master Prompt Template ───────────────────────────────────────────────────
-// Variables: {topic}, {style}, {n}, {preset}, {preset_context}
+// Variables: {topic}, {style}, {scene_count}, {preset}, {preset_context}
 
 const MASTER_PROMPT_TEMPLATE = `You are a top-tier viral content creator, cinematic director, and AI prompt engineer specializing in short-form video (TikTok, Reels, Shorts).
 
@@ -192,7 +192,7 @@ INPUT:
 Topic: {topic}
 Style: {style}
 Preset: {preset}
-Number of Scenes: {n}
+Number of Scenes: {scene_count}
 
 ---
 
@@ -396,11 +396,13 @@ If a scene does not add value, improve it.
 
 OUTPUT FORMAT (STRICT):
 
----SCENE {n}---
+For each scene, increment the scene number starting from 1 up to {scene_count}.
+
+---SCENE {scene_index}---
 LABEL: {label}
 DESCRIPTION: {short engaging line}
 PROMPT: {detailed prompt}
----END SCENE {n}---
+---END SCENE {scene_index}---
 
 ---
 
@@ -465,7 +467,7 @@ function buildFinalPrompt(vars: {
   // Use global regex replaces so all occurrences of {scene_count} etc. are filled
   return MASTER_PROMPT_TEMPLATE.replace(/\{topic\}/g, topic)
     .replace(/\{style\}/g, resolvedStyle)
-    .replace(/\{n\}/g, String(sceneCount))
+    .replace(/{scene_count}/g, String(sceneCount))
     .replace(/\{preset\}/g, presetLabel)
     .replace(/\{preset_context\}/g, presetContext);
 }

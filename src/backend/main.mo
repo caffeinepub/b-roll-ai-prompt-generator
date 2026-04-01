@@ -492,12 +492,17 @@ actor {
 
   func openaiApiRequest(promptContent : Text, apiKey : ApiKey, transform : OutCall.Transform) : async Text {
     if (apiKey == "") { Runtime.trap("Empty OpenAI API key") };
-    let escaped = escapeJson(promptContent);
+    let escapedUser = escapeJson(promptContent);
+    let systemContent = "You are a top-tier viral content creator, cinematic director, and AI prompt engineer specializing in short-form video (TikTok, Reels, Shorts). Your job is to generate highly addictive, emotionally engaging scene packs optimized for retention, curiosity, and loop potential.";
+    let escapedSystem = escapeJson(systemContent);
     let json =
       "{" #
-      "\"model\":\"gpt-4o\", " #
-      "\"messages\": [{\"role\": \"user\", \"content\": " #
-      "\"" # escaped # "\"}]," #
+      "\"model\":\"gpt-4o-mini\", " #
+      "\"temperature\": 0.9, " #
+      "\"messages\": [" #
+      "{\"role\": \"system\", \"content\": \"" # escapedSystem # "\"}, " #
+      "{\"role\": \"user\", \"content\": \"" # escapedUser # "\"}" #
+      "]," #
       "\"max_tokens\": 2048 }";
     let url = "https://api.openai.com/v1/chat/completions";
     let headers = [

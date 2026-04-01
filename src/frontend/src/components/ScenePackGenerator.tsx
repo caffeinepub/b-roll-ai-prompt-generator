@@ -182,11 +182,10 @@ Behavior: reacting, doing mundane tasks, being real`,
 // ── Master Prompt Template ───────────────────────────────────────────────────
 // Variables: {topic}, {style}, {scene_count}, {preset}, {preset_context}
 
-const MASTER_PROMPT_TEMPLATE = `You are a top-tier viral content creator, cinematic director, and AI prompt engineer specializing in short-form video (TikTok, Reels, Shorts).
+const SYSTEM_MESSAGE =
+  "You are a top-tier viral content creator, cinematic director, and AI prompt engineer specializing in short-form video (TikTok, Reels, Shorts). Your job is to generate highly addictive, emotionally engaging scene packs optimized for retention, curiosity, and loop potential.";
 
-Your task is to generate a HIGHLY ADDICTIVE, emotionally engaging SCENE PACK designed to maximize retention, curiosity, and loop potential.
-
----
+const MASTER_PROMPT_TEMPLATE = `Generate a HIGHLY ADDICTIVE SCENE PACK.
 
 INPUT:
 Topic: {topic}
@@ -194,258 +193,76 @@ Style: {style}
 Preset: {preset}
 Number of Scenes: {scene_count}
 
----
-
 PRESET CONTEXT:
 {preset_context}
 
----
-
 SCENE STRUCTURE:
-
-If 3 scenes:
-
-1. Hook
-2. Action
-3. Ending
-
-If 5 scenes:
-
-1. Hook
-2. Setup
-3. Action
-4. Emotion
-5. Ending
-
-If 7 scenes:
-
-1. Hook
-2. Setup
-3. Build
-4. Action
-5. Emotion
-6. Transition
-7. Ending
-
----
+If 3 scenes: Hook → Action → Ending
+If 5 scenes: Hook → Setup → Action → Emotion → Ending
+If 7 scenes: Hook → Setup → Build → Action → Emotion → Transition → Ending
 
 CORE DIRECTIVE:
+This must feel real, imperfect, emotionally subtle, and naturally captured (iPhone/handheld), but with hidden viral tension.
 
-This is NOT a polished commercial.
+VIRAL RULES:
+Each scene must include at least one: hesitation, interruption, reaction, internal conflict, emotional shift, or unexpected micro-action.
 
-This must feel like:
+HOOK:
+Scene 1 must start mid-action and create immediate curiosity.
 
-* real life
-* imperfect
-* emotionally subtle
-* captured naturally (iPhone / handheld)
+STORY:
+Each scene must evolve with no repetition and build tension.
 
-BUT with hidden viral tension.
+LOOP:
+Final scene must visually or emotionally loop back to Scene 1.
 
----
+REALISM:
+Include imperfections (camera shake, blur, imperfect framing).
 
-VIRAL PSYCHOLOGY RULES (CRITICAL):
-
-Every scene MUST include at least ONE of:
-
-* hesitation before action
-* interrupted movement
-* reaction to something unseen
-* internal conflict (almost doing something, then stopping)
-* subtle change in emotion
-* unexpected micro-action (pattern interrupt)
-
-Avoid predictable repetition.
-
----
-
-HOOK (SCENE 1) — SCROLL-STOPPING:
-
-The first scene must:
-
-* start mid-action (not before action)
-* include tension, hesitation, or reaction
-* create immediate curiosity
-
-Avoid:
-
-* calm openings
-* neutral behavior
-* generic "checking phone" without context
-
-The viewer should feel:
-"What just happened?" or "What is going on?"
-
----
-
-STORY PROGRESSION:
-
-* Each scene must evolve (no repetition)
-* Add small changes in behavior or emotion
-* Build curiosity or tension gradually
-* Make viewer wonder: "what happens next?"
-
----
-
-RETENTION TRIGGERS:
-
-Across the sequence, include:
-
-* at least one moment of hesitation
-* one unexpected action
-* one emotional shift
-* one unresolved moment
-
-These elements should increase watch time and replayability.
-
----
-
-LOOP STRATEGY (VERY IMPORTANT):
-
-The final scene must create a seamless loop by:
-
-* visually matching or mirroring Scene 1
-  OR
-* repeating a similar action with a different emotional meaning
-
-The viewer should not notice where the video restarts.
-
----
-
-REALISM RULES:
-
-* Slight imperfections required (camera shake, blur, imperfect framing)
-* Avoid overproduced cinematic look
-* Keep it raw and natural
-
----
-
-CAMERA STYLE:
-
-* handheld
-* over-the-shoulder
-* POV angles when relevant
-* close-up for emotional moments
-* slight movement always preferred
-
----
+CAMERA:
+Handheld, POV, close-ups, slight movement.
 
 LIGHTING:
-
-* natural light
-* soft shadows
-* slight over/under exposure allowed
-
----
-
-EMOTIONAL LAYER:
-
-Each scene must express:
-
-* thought
-* reaction
-* mood shift
-
-Even minimal.
-
----
+Natural light, soft shadows, slight imperfections allowed.
 
 PROMPT REQUIREMENTS:
-
 Each scene must:
+- Keep the same character
+- Include micro-action, camera, lighting, emotion, environment
+- Be 50–100 words
 
-* Keep SAME character
-* Include:
+OUTPUT RULES (CRITICAL):
+Return ONLY valid JSON.
+Do NOT include any extra text, markdown, or code fences.
 
-  * micro-action
-  * camera direction
-  * lighting
-  * emotional tone
-  * environment details
-  * imperfections
-* Be 50–100 words
-* Feel like directing a real video shoot
+OUTPUT FORMAT:
+{
+  "scenes": [
+    {
+      "scene_number": 1,
+      "label": "Hook",
+      "description": "short engaging line",
+      "prompt": "detailed cinematic prompt"
+    }
+  ]
+}
 
----
-
-OUTPUT BEHAVIOR (CRITICAL):
-
-Do NOT repeat or include any of the instructions above.
-
-Do NOT include:
-- INPUT section
-- PRESET CONTEXT
-- RULES or GUIDELINES
-
-ONLY output the final SCENE PACK using the exact format below.
-
----
-
-SCENE DENSITY RULE:
-
-Avoid filler.
-
-Each scene must feel like:
-- a key moment
-- a meaningful shift
-- a progression in story
-
-If a scene does not add value, improve it.
-
----
-
-OUTPUT FORMAT (STRICT):
-
-For each scene, increment the scene number starting from 1 up to {scene_count}.
-
----SCENE {scene_index}---
-LABEL: {label}
-DESCRIPTION: {short engaging line}
-PROMPT: {detailed prompt}
----END SCENE {scene_index}---
-
----
-
-ANTI-BORING ENFORCER (CRITICAL):
-
-Reject any scene that includes:
-
-* generic actions (e.g. "sitting and checking phone" without variation)
-* repeated behavior across scenes
-* no emotional shift
-* no micro-tension
-
-If a scene feels predictable, rewrite it with:
-
-* a hesitation
-* a reaction
-* or an interrupted action
-
-Every scene must feel like a unique moment, not a variation of the same shot.
-
----
-
-FINAL QUALITY CHECK:
-
-* No static scenes
-* No repetition
-* Each scene adds tension or curiosity
-* Strong hook
-* Strong loop ending
-
----
-
-ELITE MODE:
-
-Push beyond obvious ideas.
-Avoid generic behavior.
-Make it feel like a real, relatable, slightly uncomfortable human moment.
-
----
-
-Now generate the scene pack.`;
+RULES:
+- Generate exactly {scene_count} scenes
+- scene_number must increment from 1 to {scene_count}
+- No repetition
+- No generic actions
+- Ensure emotional progression
+- Ensure strong hook and loop ending
+- Output must be valid JSON (no trailing commas, no markdown)
+- If the output is not valid JSON, regenerate it until it is valid.`;
 
 // ── Template Variable Injector ───────────────────────────────────────────────
+
+type BuiltPrompt = {
+  userContent: string;
+  debugJson: string;
+};
 
 function buildFinalPrompt(vars: {
   topic: string;
@@ -454,7 +271,7 @@ function buildFinalPrompt(vars: {
   sceneLabels: string[];
   presetKey: PresetKey | null;
   isElite: boolean;
-}): string {
+}): BuiltPrompt {
   const { topic, style, sceneCount, presetKey } = vars;
 
   const resolvedStyle = style.trim() || "cinematic, modern";
@@ -464,12 +281,26 @@ function buildFinalPrompt(vars: {
   const presetContext = presetKey
     ? PRESET_CONTEXT[presetKey]
     : "No specific preset — use cinematic defaults for environment, lighting, and mood.";
-  // Use global regex replaces so all occurrences of {scene_count} etc. are filled
-  return MASTER_PROMPT_TEMPLATE.replace(/\{topic\}/g, topic)
+
+  const userContent = MASTER_PROMPT_TEMPLATE.replace(/\{topic\}/g, topic)
     .replace(/\{style\}/g, resolvedStyle)
-    .replace(/{scene_count}/g, String(sceneCount))
+    .replace(/\{scene_count\}/g, String(sceneCount))
     .replace(/\{preset\}/g, presetLabel)
     .replace(/\{preset_context\}/g, presetContext);
+
+  const requestPayload = {
+    model: "gpt-4o-mini",
+    temperature: 0.9,
+    messages: [
+      { role: "system", content: SYSTEM_MESSAGE },
+      { role: "user", content: userContent },
+    ],
+  };
+
+  return {
+    userContent,
+    debugJson: JSON.stringify(requestPayload, null, 2),
+  };
 }
 
 // Presets accessible per plan
@@ -499,15 +330,50 @@ function getMaxScenes(plan: string): number {
 }
 
 function parseScenes(raw: string): SceneResult[] {
-  const scenes: SceneResult[] = [];
+  // Try to extract content from OpenAI response envelope
   let content = raw;
   try {
-    const json = JSON.parse(raw);
-    content = json?.choices?.[0]?.message?.content ?? raw;
+    const envelope = JSON.parse(raw);
+    if (envelope?.choices?.[0]?.message?.content) {
+      content = envelope.choices[0].message.content;
+    }
   } catch {
-    // raw might already be plain text
+    // raw might already be the inner content
   }
 
+  // Strip markdown code fences if present
+  content = content
+    .replace(/^```(?:json)?\n?/i, "")
+    .replace(/\n?```$/i, "")
+    .trim();
+
+  // Try to parse as JSON (new format)
+  try {
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed?.scenes)) {
+      return parsed.scenes.map(
+        (
+          s: {
+            scene_number?: number;
+            label?: string;
+            description?: string;
+            prompt?: string;
+          },
+          i: number,
+        ) => ({
+          number: s.scene_number ?? i + 1,
+          label: s.label ?? `Scene ${i + 1}`,
+          description: s.description ?? "",
+          prompt: s.prompt ?? "",
+        }),
+      );
+    }
+  } catch {
+    // Fall through to legacy text parser
+  }
+
+  // Legacy fallback: parse ---SCENE {n}--- text blocks
+  const scenes: SceneResult[] = [];
   const blocks = content
     .split(/---SCENE \d+---/)
     .filter((b: string) => b.trim());
@@ -516,7 +382,6 @@ function parseScenes(raw: string): SceneResult[] {
     const labelMatch = block.match(/LABEL:\s*(.+)/);
     const descMatch = block.match(/DESCRIPTION:\s*(.+)/);
     const promptMatch = block.match(/PROMPT:\s*([\s\S]+?)(?:---END SCENE|$)/);
-
     if (labelMatch && descMatch && promptMatch) {
       scenes.push({
         number: i + 1,
@@ -590,7 +455,7 @@ export default function ScenePackGenerator({
     setIsGenerating(true);
     try {
       // Build the fully-replaced prompt from the master template
-      const prompt = buildFinalPrompt({
+      const { userContent, debugJson } = buildFinalPrompt({
         topic: topic.trim(),
         style: style.trim(),
         sceneCount: effectiveCount,
@@ -600,11 +465,11 @@ export default function ScenePackGenerator({
       });
 
       // Store for debug panel
-      setFinalPrompt(prompt);
+      setFinalPrompt(debugJson);
 
       const result = await actor.makePromptRequestWithSession(
         sessionToken,
-        prompt,
+        userContent,
       );
       if ("err" in result) {
         toast.error(result.err);
@@ -942,7 +807,7 @@ export default function ScenePackGenerator({
                 <div className="flex items-center gap-2">
                   <Terminal className="w-4 h-4 text-amber-400" />
                   <CardTitle className="text-sm font-semibold text-amber-400">
-                    🧪 Debug: Final Prompt Sent to API
+                    🧪 Debug: JSON Request Sent to API
                   </CardTitle>
                   <Badge
                     variant="outline"
@@ -956,12 +821,12 @@ export default function ScenePackGenerator({
                   variant="outline"
                   onClick={() => {
                     navigator.clipboard.writeText(finalPrompt);
-                    toast.success("Prompt copied");
+                    toast.success("JSON copied");
                   }}
                   className="gap-1.5 border-amber-500/30 text-amber-400 hover:bg-amber-500/10 text-xs h-7"
                 >
                   <Copy className="w-3 h-3" />
-                  Copy Prompt
+                  Copy JSON
                 </Button>
               </div>
             </CardHeader>

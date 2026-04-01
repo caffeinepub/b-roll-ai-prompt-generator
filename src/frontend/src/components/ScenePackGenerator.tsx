@@ -185,13 +185,7 @@ Behavior: reacting, doing mundane tasks, being real`,
 const SYSTEM_MESSAGE =
   "You are a top-tier viral content creator, cinematic director, and AI prompt engineer specializing in short-form video (TikTok, Reels, Shorts). Your job is to generate highly addictive, emotionally engaging scene packs optimized for retention, curiosity, and loop potential.";
 
-const MASTER_PROMPT_TEMPLATE = `Generate a HIGHLY ADDICTIVE SCENE PACK.
-
-INPUT:
-Topic: {topic}
-Style: {style}
-Preset: {preset}
-Number of Scenes: {scene_count}`;
+const MASTER_PROMPT_TEMPLATE = "Topic: {topic}";
 
 // ── Template Variable Injector ───────────────────────────────────────────────
 

@@ -185,7 +185,94 @@ Behavior: reacting, doing mundane tasks, being real`,
 const SYSTEM_MESSAGE =
   "You are a top-tier viral content creator, cinematic director, and AI prompt engineer specializing in short-form video (TikTok, Reels, Shorts). Your job is to generate highly addictive, emotionally engaging scene packs optimized for retention, curiosity, and loop potential.";
 
-const MASTER_PROMPT_TEMPLATE = "Topic: {topic}";
+const MASTER_PROMPT_TEMPLATE = `Generate a HIGHLY ADDICTIVE SCENE PACK.
+
+INPUT:
+Topic: {topic}
+Style: {style}
+Preset: {preset}
+Number of Scenes: {scene_count}
+
+PRESET CONTEXT:
+{preset_context}
+
+SCENE STRUCTURE:
+If 3 scenes: Hook → Action → Ending
+If 5 scenes: Hook → Setup → Action → Emotion → Ending
+If 7 scenes: Hook → Setup → Build → Action → Emotion → Transition → Ending
+
+CORE DIRECTIVE:
+This must feel real, imperfect, emotionally subtle, and naturally captured (iPhone/handheld), but with hidden viral tension.
+
+VIRAL RULES:
+Each scene must include at least one: hesitation, interruption, reaction, internal conflict, emotional shift, or unexpected micro-action.
+
+HOOK:
+Scene 1 must start mid-action and create immediate curiosity.
+
+STORY:
+Each scene must evolve with no repetition and build tension.
+
+LOOP:
+Final scene must visually or emotionally loop back to Scene 1.
+
+REALISM:
+Include imperfections (camera shake, blur, imperfect framing).
+
+CAMERA:
+Handheld, POV, close-ups, slight movement.
+
+LIGHTING:
+Natural light, soft shadows, slight imperfections allowed.
+
+PROMPT REQUIREMENTS:
+Each scene must:
+- Keep the same character
+- Include micro-action, camera, lighting, emotion, environment
+- Be 50–100 words
+
+ANTI-BORING ENFORCER:
+Reject any scene that is generic, repetitive, or lacks emotional shift.
+If a scene feels predictable, rewrite it with hesitation, reaction, or interrupted action.
+
+RETENTION TRIGGERS:
+Include at least: one moment of hesitation, one unexpected action, one emotional shift, one unresolved moment.
+
+LOOP STRATEGY:
+Final scene must visually or emotionally mirror Scene 1 so the video loops seamlessly.
+
+ELITE MODE:
+Push beyond obvious ideas. Make it feel real, relatable, slightly uncomfortable.
+
+OUTPUT BEHAVIOR (CRITICAL):
+Do NOT repeat or include any of the instructions above.
+Do NOT include INPUT section, PRESET CONTEXT, RULES or GUIDELINES.
+ONLY output the final SCENE PACK in the exact JSON format below.
+
+OUTPUT RULES (CRITICAL):
+Return ONLY valid JSON.
+Do NOT include any extra text, markdown, or code fences.
+
+OUTPUT FORMAT:
+{
+  "scenes": [
+    {
+      "scene_number": 1,
+      "label": "Hook",
+      "description": "short engaging line",
+      "prompt": "detailed cinematic prompt"
+    }
+  ]
+}
+
+RULES:
+- Generate exactly {scene_count} scenes
+- scene_number must increment from 1 to {scene_count}
+- No repetition
+- No generic actions
+- Ensure emotional progression
+- Ensure strong hook and loop ending
+- Output must be valid JSON (no trailing commas, no markdown)`;
 
 // ── Template Variable Injector ───────────────────────────────────────────────
 
